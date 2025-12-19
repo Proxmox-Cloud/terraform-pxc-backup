@@ -1,0 +1,7 @@
+provider_installation {
+  filesystem_mirror {
+    path    = "/home/cloud/.tdd-providers"
+    include = ["pxc/*"]
+  }
+  direct {}
+}
