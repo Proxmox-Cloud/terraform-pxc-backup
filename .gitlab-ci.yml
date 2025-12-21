@@ -1,7 +1,7 @@
 # trigger a new release on gitlab
 release_tag:
   stage: build
-  image: tobiashvmz/pve-cloud-ci:2025121321
+  image: tobiashvmz/pve-cloud-ci:2025122113
   script:
     - pwd
     - /scripts/release-tag.sh
@@ -14,7 +14,7 @@ release_tag:
 # gitlab repository mirroring is not fast enough
 push_github:
   stage: deploy
-  image: tobiashvmz/pve-cloud-ci:2025121321
+  image: tobiashvmz/pve-cloud-ci:2025122113
   script:
     - git config --global user.name "$GITLAB_USER_NAME"
     - git config --global user.email "$GITLAB_USER_EMAIL"
@@ -32,7 +32,7 @@ push_github:
 # pipeline trigger if the upstream releases
 pxc_prov_upstream:
   stage: build
-  image: tobiashvmz/pve-cloud-ci:2025121321
+  image: tobiashvmz/pve-cloud-ci:2025122113
   script:
     # update all versions.tf files with the new provider tag
     - 'find . -type f -name "versions.tf" -exec sed -i "s/version.*pxc/version = \"~>${PXC_PROV_VERSION}\" # pxc/" {} +'
@@ -57,7 +57,7 @@ trigger_upstream_release_tag:
 
 pve_cloud_backup_upstream:
   stage: build
-  image: tobiashvmz/pve-cloud-ci:2025121321
+  image: tobiashvmz/pve-cloud-ci:2025122113
   script:
     # write the new version
     - sed -i "s/var\.backup_image_version\s==\s\?\snull\s?\s\".*\"/var.backup_image_version == null ? \"${PVE_CLOUD_BACKUP}\"/" variables.tf
