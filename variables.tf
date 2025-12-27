@@ -39,7 +39,7 @@ variable "bandwidth_limitation" {
 variable "cron_schedule" {
   type = string
   description = "How often the backup job should run"
-  default = "0 0 * * 0,2,4,6" # This runs the job every second day
+  default = "0 4 * * *" # This runs the job every second day
 }
 
 variable "git_repo_ssh_key" {
