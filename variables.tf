@@ -33,7 +33,7 @@ variable "backup_config" {
 variable "bandwidth_limitation" {
   type = string
   description = "Bandwith limitation for ingress and egress. Prevent locking up the network through backups."
-  default = "100M"
+  default = "50M"
 }
 
 variable "cron_schedule" {
