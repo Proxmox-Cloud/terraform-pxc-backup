@@ -1,5 +1,5 @@
 
-from scenarios import *
+from fixtures import *
 import ssl
 import socket
 from cryptography import x509
@@ -21,7 +21,12 @@ import json
 import requests
 from kubernetes.client.rest import ApiException
 import pytest
-
+from pve_cloud_backup.daemon.brctl import launch_restore_job, get_parser
+from types import SimpleNamespace
+import asyncio
+from pve_cloud_backup.daemon.rpc import Command
+import struct
+import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +35,8 @@ def random_string(length=16):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario):
+@pytest.mark.asyncio
+async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario):
   logger.info("test backup create and restore")
 
   kubeconfig = set_k8s_auth
@@ -109,6 +115,7 @@ def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario):
 
     logger.info(f"pod {pod.metadata.name} in phase {phase}")
 
+
   # find the backup lxc, get its ip and paramiko into it to test the if the backup was created
   backup_lxc = None
   for node in get_proxmoxer.nodes.get():
@@ -130,33 +137,69 @@ def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario):
 
   time.sleep(10) # wait for borg repo lock to be released
 
-  ssh = paramiko.SSHClient()
-  ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-  ssh.connect(ddns_ips[0], username="root")
+  # call brctl methods
+  reader, writer = await asyncio.open_connection(ddns_ips[0], 8085)
+  writer.write(struct.pack("B", Command.LIST_BACKUPS.value))
+  await writer.drain()
 
-  _, stdout, stderr = ssh.exec_command("/opt/bdd/.venv/bin/brctl list-backups --json --backup-path /mnt/backup-drive")
+  # read the response archives size and then the archives
+  dict_size = struct.unpack('!I', (await reader.readexactly(4)))[0]
+  archives = pickle.loads((await reader.readexactly(dict_size)))
 
-  backup_timestamps = json.loads(stdout.read().decode('utf-8')) # sorted
+  # fetch local backup image version if build via tdd
+  image = None
+  if os.getenv("TDDOG_LOCAL_IFACE"):
+    # get version for image from redis
+    r = redis.Redis(host='localhost', port=6379, db=0)
+    local_build_backup_version = r.get("version.pve-cloud-backup").decode()
 
-  assert backup_timestamps, f"no output on list-backups {stderr.read().decode('utf-8')}"
+    if local_build_backup_version:
+      logger.info(f"found local version {local_build_backup_version}")
+      image = f"{get_ipv4(os.getenv("TDDOG_LOCAL_IFACE"))}:5000/pve-cloud-backup:{local_build_backup_version}"
+    else:
+      logger.warning(f"did not find local build pve cloud build version even though TDDOG_LOCAL_IFACE env var is defined")
 
-  logger.info(backup_timestamps)
+  latest_timestamp = sorted(archives)[-1]
+  logger.info(latest_timestamp)
 
-  latest_backup_timestamp = backup_timestamps[-1]
+  brctl_parser = get_parser()
 
-  # write kubeconfig via b64 decode to the lxc
-  _, stdout, _ = ssh.exec_command(f"echo {base64.b64encode(kubeconfig.encode('utf-8')).decode('utf-8')} | base64 -d > /root/pytest-kubeconfig.yml")
+  restore_args = brctl_parser.parse_args([
+    "restore-k8s",
+    "--bdd-host", ddns_ips[0],
+    "--target-pve", f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
+    "--stack-name", "pytest-k8s",
+    "--image", image,
+    "--timestamp", latest_timestamp,
+    "--namespace-mapping", "test-backup-source:test-backup-restore",
+    "--auto-scale", "--auto-delete"
+  ])
 
-  # restore the backup
-  full_restore_command = (f"/opt/bdd/.venv/bin/brctl restore-k8s --backup-path /mnt/backup-drive --timestamp {latest_backup_timestamp} " + 
-    f"--k8s-stack-name pytest-k8s.{get_test_env['pve_test_cloud_domain']} --namespace-mapping test-backup-source:test-backup-restore " +
-    "--auto-scale --auto-delete")
-  
-  logger.info(full_restore_command)
-  _, stdout, stderr = ssh.exec_command(full_restore_command)
+  launch_restore_job(restore_args)
 
-  exit_status = stdout.channel.recv_exit_status()
-  assert exit_status == 0
+
+  # wait for the restore job to finish
+  while True:
+    time.sleep(5) # give pods some time to create / dont spam api
+
+    # fetch the pod and wait for it to finish
+    pods = v1.list_namespaced_pod(
+      namespace="pve-cloud-backup",
+      label_selector=f"job=pxc-restore-{latest_timestamp}"
+    ).items
+
+    assert pods
+
+    pod = pods[0]
+
+    phase = pod.status.phase
+
+    assert phase != "Failed", f"pod {pod.metadata.name} failed!" # failed pods end tests immediatly
+
+    if phase == "Succeeded":
+      break # finished
+
+    logger.info(f"pod {pod.metadata.name} in phase {phase}")
 
   # wait for the pod to be running again and exec into it when it is
   while True:

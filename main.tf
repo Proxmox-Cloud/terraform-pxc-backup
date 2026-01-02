@@ -1,11 +1,3 @@
-resource "kubernetes_namespace" "backup" {
-  metadata {
-    name = "pve-cloud-backup"
-  }
-}
-
-data "pxc_ceph_access" "ceph_access" {}
-
 data "pxc_ssh_key" "host_rsa" {
   key_type = "PVE_HOST_RSA"
 }
@@ -21,16 +13,18 @@ data "pxc_cloud_secret" "patroni" {
 data "pxc_pve_host" "host" {
 }
 
+module "access_namespace" {
+  source = "./modules/access-namespace"
+}
 
 # create config map for the backupper
 resource "kubernetes_config_map" "fetcher_config" {
   metadata {
     name = "fetcher-config"
-    namespace = kubernetes_namespace.backup.metadata[0].name
+    namespace = module.access_namespace.namespace
   }
 
   data = {
-    "ceph.conf" = data.pxc_ceph_access.ceph_access.ceph_conf
     "backup-conf.yaml" = yamlencode(var.backup_config)
   }
 }
@@ -38,11 +32,10 @@ resource "kubernetes_config_map" "fetcher_config" {
 resource "kubernetes_secret" "fetcher_secrets" {
   metadata {
     name = "fetcher-secrets"
-    namespace = kubernetes_namespace.backup.metadata[0].name
+    namespace =  module.access_namespace.namespace
   }
   data = merge({
     "pve-id-rsa" = data.pxc_ssh_key.host_rsa.key
-    "ceph-admin-keyring" = data.pxc_ceph_access.ceph_access.admin_keyring
     "qemu-id"= data.pxc_ssh_key.automation.key
     "patroni-pass" = data.pxc_cloud_secret.patroni.secret
   },
@@ -55,25 +48,6 @@ resource "kubernetes_secret" "fetcher_secrets" {
   )
 }
 
-# cluster admin access for backup tool 
-# todo: restrict access to read only and what the fetcher actually needs
-resource "kubernetes_cluster_role_binding" "default_fetcher_sa_admin" {
-  metadata {
-    name = "pve-cloud-backup-admin"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "cluster-admin"
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "default"
-    namespace = kubernetes_namespace.backup.metadata[0].name
-  }
-}
 
 
 resource "kubernetes_manifest" "fetcher_cron" {
@@ -82,7 +56,7 @@ resource "kubernetes_manifest" "fetcher_cron" {
     kind: CronJob
     metadata:
       name: fetcher-cron
-      namespace: ${kubernetes_namespace.backup.metadata[0].name}
+      namespace: ${ module.access_namespace.namespace}
     spec:
       schedule: "${var.cron_schedule}"
       jobTemplate:
@@ -99,7 +73,7 @@ resource "kubernetes_manifest" "fetcher_cron" {
               - name: fetcher
                 image: ${local.backup_image_base}:${local.backup_image_version}
                 imagePullPolicy: Always
-                command: [ "fetcher" ]
+                args: [ "fetcher" ]
                 env:
                   - name: PROXMOXER_HOST
                     value: "${data.pxc_pve_host.host.pve_host}"
@@ -120,13 +94,13 @@ resource "kubernetes_manifest" "fetcher_cron" {
       %{ endif }
                 volumeMounts:
                 - mountPath: /etc/ceph/ceph.conf
-                  name: fetcher-config
+                  name: ceph-config
                   subPath: "ceph.conf"
                 - mountPath: /opt/backup-conf.yaml
                   name: fetcher-config
                   subPath: "backup-conf.yaml"
                 - mountPath: /etc/pve/priv/ceph.client.admin.keyring
-                  name: fetcher-secrets
+                  name: ceph-secrets
                   subPath: "ceph-admin-keyring"
                 - mountPath: /root/.ssh/id_rsa
                   name: fetcher-secrets
@@ -152,6 +126,12 @@ resource "kubernetes_manifest" "fetcher_cron" {
               - name: fetcher-config
                 configMap:
                   name: fetcher-config
+              - name: ceph-config
+                configMap:
+                  name: ceph-config
+              - name: ceph-secrets
+                secret:
+                  secretName: ceph-secrets
               - name: fetcher-secrets
                 secret:
                   secretName: fetcher-secrets
