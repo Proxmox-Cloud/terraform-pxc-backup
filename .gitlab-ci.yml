@@ -20,7 +20,7 @@ pxc_prov_rc_upstream:
     - /scripts/rc-branch.sh $new_tag
     # update all versions.tf files with the new provider tag
     - 'find . -type f -name "versions.tf" -exec sed -i "s/version.*pxc/version = \"${PXC_PROV_VERSION}\" # pxc/" {} +'
-    - /scripts/upstream-push.sh "Set pxc provider rc version to $PXC_PROV_VERSION"
+    - /scripts/upstream-push.sh "Set pxc provider rc version to $PXC_PROV_VERSION" "${new_tag}-rc"
   rules:
     - if: '$PXC_PROV_VERSION != null && $PXC_PROV_VERSION != "" && $UPSTREAM_TAG_MESSAGE =~ /^rc-.*/' # set by upstream
   resource_group: deploy-prod
@@ -46,7 +46,7 @@ pve_cloud_backup_rc_upstream:
     - /scripts/rc-branch.sh $new_tag
     # write the new version
     - sed -i "s/var\.backup_image_version\s==\s\?\snull\s?\s\".*\"/var.backup_image_version == null ? \"${PVE_CLOUD_BACKUP}\"/" variables.tf
-    - /scripts/upstream-push.sh "Set pve-cloud-backup rc version to $PVE_CLOUD_BACKUP"
+    - /scripts/upstream-push.sh "Set pve-cloud-backup rc version to $PVE_CLOUD_BACKUP" "${new_tag}-rc"
   rules:
     - if: '$PVE_CLOUD_BACKUP != null && $PVE_CLOUD_BACKUP != "" && $UPSTREAM_TAG_MESSAGE =~ /^rc-.*/' # set by upstream
     
