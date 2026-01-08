@@ -69,17 +69,11 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
 
       # for local tdd with development watchdogs
       extra_vars = {}
-      if os.getenv("TDDOG_LOCAL_IFACE"):
-        # get version for image from redis
-        r = redis.Redis(host='localhost', port=6379, db=0)
-        local_build_backup_version = r.get("version.pve-cloud-backup").decode()
+      backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
-        if local_build_backup_version:
-          logger.info(f"found local version {local_build_backup_version}")
-          extra_vars["tdd_local_pypi_host"] = get_ipv4(os.getenv("TDDOG_LOCAL_IFACE"))
-          extra_vars["py_pve_cloud_backup_version"] = local_build_backup_version
-        else:
-          logger.warning(f"did not find local build pve cloud build version even though TDDOG_LOCAL_IFACE env var is defined")
+      if backup_vers:
+          extra_vars["tdd_local_pypi_host"] = tdd_ip
+          extra_vars["py_pve_cloud_backup_version"] = backup_vers
 
       setup_bdd_run = ansible_runner.run(
         project_dir=os.getcwd(),
@@ -108,19 +102,11 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
 def backup_scenario(request, set_pve_cloud_auth, get_k8s_api_v1, create_backup_lxc):
   scenario_name = "backup"
 
-  if os.getenv("TDDOG_LOCAL_IFACE"):
-    # get version for image from redis
-    r = redis.Redis(host='localhost', port=6379, db=0)
-    local_build_backup_version = r.get("version.pve-cloud-backup")
+  backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
-    if local_build_backup_version:
-      logger.info(f"found local version {local_build_backup_version.decode()}")
-      
-      # set controller base image
-      os.environ["TF_VAR_backup_image_base"] = f"{get_ipv4(os.getenv('TDDOG_LOCAL_IFACE'))}:5000/pve-cloud-backup"
-      os.environ["TF_VAR_backup_image_version"] = local_build_backup_version.decode()
-    else:
-      logger.warning(f"did not find local build pve cloud build version even though TDDOG_LOCAL_IFACE is defined")
+  if backup_vers:
+      os.environ["TF_VAR_backup_image_base"] = f"{tdd_ip}:5000/pve-cloud-backup"
+      os.environ["TF_VAR_backup_image_version"] = backup_vers
 
   if not request.config.getoption("--skip-apply"):
     apply("pxc-backup", scenario_name, get_k8s_api_v1, True, True) # this will wait till everything is running after apply

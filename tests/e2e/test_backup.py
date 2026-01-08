@@ -147,17 +147,11 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
   archives = pickle.loads((await reader.readexactly(dict_size)))
 
   # fetch local backup image version if build via tdd
-  image = None
-  if os.getenv("TDDOG_LOCAL_IFACE"):
-    # get version for image from redis
-    r = redis.Redis(host='localhost', port=6379, db=0)
-    local_build_backup_version = r.get("version.pve-cloud-backup").decode()
+  backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
-    if local_build_backup_version:
-      logger.info(f"found local version {local_build_backup_version}")
-      image = f"{get_ipv4(os.getenv("TDDOG_LOCAL_IFACE"))}:5000/pve-cloud-backup:{local_build_backup_version}"
-    else:
-      logger.warning(f"did not find local build pve cloud build version even though TDDOG_LOCAL_IFACE env var is defined")
+  image = None
+  if backup_vers:
+      image = f"{tdd_ip}:5000/pve-cloud-backup:{backup_vers}"
 
   latest_timestamp = sorted(archives)[-1]
   logger.info(latest_timestamp)
