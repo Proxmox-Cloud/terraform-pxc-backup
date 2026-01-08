@@ -1,20 +1,27 @@
 # trigger a new release on gitlab
 release_tag:
   stage: build
-  image: docker.io/tobiashvmz/pve-cloud-ci:2025122115
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
   script:
-    - pwd
     - /scripts/release-tag.sh
   rules:
     - if: '$CI_COMMIT_TAG =~ /^release-[a-z]+$/'
-    - if: '$CI_COMMIT_TAG =~ /^release-all-[a-z]+$/'
+  resource_group: deploy-prod
+
+rc_tag:
+  stage: build
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
+  script:
+    - /scripts/rc-tag.sh
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^rc-[a-z]+$/'
   resource_group: deploy-prod
 
 # push the new tag to github so we have it instantly in the public terraform registry
 # gitlab repository mirroring is not fast enough
 push_github:
   stage: deploy
-  image: docker.io/tobiashvmz/pve-cloud-ci:2025122115
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
   script:
     - git config --global user.name "$GITLAB_USER_NAME"
     - git config --global user.email "$GITLAB_USER_EMAIL"
@@ -27,10 +34,25 @@ push_github:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/' # semver
 
+push_rc_github:
+  stage: deploy
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
+  script:
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+
+    # add github remote
+    - git remote add github https://$GITHUB_TOKEN@github.com/Proxmox-Cloud/terraform-pxc-backup.git
+    # no need to push the branch rc release tag is enough
+    - git push github $CI_COMMIT_TAG
+
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/' # release candidate
+
 # pipeline trigger if the upstream releases
 pxc_prov_upstream:
   stage: build
-  image: docker.io/tobiashvmz/pve-cloud-ci:2025122115
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
   script:
     # update all versions.tf files with the new provider tag
     - 'find . -type f -name "versions.tf" -exec sed -i "s/version.*pxc/version = \"~>${PXC_PROV_VERSION}\" # pxc/" {} +'
@@ -38,30 +60,30 @@ pxc_prov_upstream:
   rules:
     - if: ( $PXC_PROV_VERSION != null || $PXC_PROV_VERSION =~ /^./ ) # set by upstream
 
-
-trigger_upstream_release_tag:
-  stage: deploy
-  image: alpine/curl:8.14.1
-  script:
-    - |
-      curl --request POST \
-        --form "token=${CI_JOB_TOKEN}" \
-        --form "ref=${UPSTREAM_TAG_MESSAGE}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/trigger/pipeline"
-  rules:
-    - if: $UPSTREAM_TAG_MESSAGE =~ /-all-/ && ( $PXC_PROV_VERSION != null || $PXC_PROV_VERSION =~ /^./ ) # set by upstream
-    - if: $UPSTREAM_TAG_MESSAGE =~ /-all-/ && ( $PVE_CLOUD_BACKUP != null || $PVE_CLOUD_BACKUP =~ /^./ )
-
-
 pve_cloud_backup_upstream:
   stage: build
-  image: docker.io/tobiashvmz/pve-cloud-ci:2025122115
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
   script:
     # write the new version
     - sed -i "s/var\.backup_image_version\s==\s\?\snull\s?\s\".*\"/var.backup_image_version == null ? \"${PVE_CLOUD_BACKUP}\"/" variables.tf
     - /scripts/upstream-push.sh "Update pve-cloud-backup version to $PVE_CLOUD_BACKUP"
   rules:
-    - if: ( $PVE_CLOUD_BACKUP != null || $PVE_CLOUD_BACKUP =~ /^./ ) # set by upstream
+    - if: '$PVE_CLOUD_BACKUP != null && $PVE_CLOUD_BACKUP != "" && $UPSTREAM_TAG_MESSAGE =~ /^release-.*/' # set by upstream
+
+pve_cloud_backup_rc_upstream:
+  stage: build
+  image: docker.io/tobiashvmz/pve-cloud-ci:202601081028
+  script:
+    # get the latest prod tag
+    - new_tag=$(/scripts/get-new-tag.sh)
+    - echo $new_tag
+    # switch to rc branch
+    - /scripts/rc-branch.sh $new_tag
+    # write the new version
+    - sed -i "s/var\.backup_image_version\s==\s\?\snull\s?\s\".*\"/var.backup_image_version == null ? \"${PVE_CLOUD_BACKUP}\"/" variables.tf
+    - /scripts/upstream-push.sh "Set pve-cloud-backup rc version to $PVE_CLOUD_BACKUP"
+  rules:
+    - if: '$PVE_CLOUD_BACKUP != null && $PVE_CLOUD_BACKUP != "" && $UPSTREAM_TAG_MESSAGE =~ /^rc-.*/' # set by upstream
 
 format_source:
   stage: build
@@ -85,8 +107,9 @@ format_source:
   rules:
     - if: >
         $CI_COMMIT_TAG !~ /^\d+\.\d+\.\d+$/ &&
+        $CI_COMMIT_TAG !~ /^\d+\.\d+\.\d+-rc\d+$/ &&
         $CI_COMMIT_TAG !~ /^release-[a-z]+$/ &&
-        $CI_COMMIT_TAG !~ /^release-all-[a-z]+$/ &&
+        $CI_COMMIT_TAG !~ /^rc-[a-z]+$/ &&
         $CI_PIPELINE_SOURCE == 'push'
       when: on_success
     - when: never
