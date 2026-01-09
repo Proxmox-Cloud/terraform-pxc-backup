@@ -19,7 +19,7 @@ from pve_cloud_test.terraform import apply, destroy
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="session")
+@cloud_fixture("backup")
 def create_backup_lxc(request, get_proxmoxer, get_test_env):
     logger.info("test create backup lxc")
 
