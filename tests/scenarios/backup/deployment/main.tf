@@ -53,7 +53,7 @@ resource "kubernetes_deployment_v1" "busybox" {
       spec {
         container {
           name  = "busybox"
-          image = "busybox:1.36"
+          image = "busybox:1.37"
           image_pull_policy = "IfNotPresent"
 
           # Keep the pod running forever
