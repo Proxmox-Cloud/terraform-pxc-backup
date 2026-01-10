@@ -4,6 +4,6 @@
     "config:recommended"
   ],
   "terraform": {
-    "managerFilePatterns": ["tests/scenarios/.+\\.tf$"]
+    "managerFilePatterns": ["tests/scenarios/backup/versions.tf"]
   }
 }
