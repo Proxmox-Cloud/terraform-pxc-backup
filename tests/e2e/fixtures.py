@@ -55,44 +55,44 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
         )
         temp_dyn_lxcs_inv.flush()
 
-        try:
-            create_lxc_run = ansible_runner.run(
+        create_lxc_run = ansible_runner.run(
+            project_dir=os.getcwd(),
+            playbook="pxc.cloud.sync_lxcs",
+            inventory=temp_dyn_lxcs_inv.name,
+            verbosity=request.config.getoption("--ansible-verbosity"),
+        )
+
+        assert create_lxc_run.rc == 0
+
+        # for local tdd with development watchdogs
+        extra_vars = {}
+        backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
+
+        if backup_vers:
+            extra_vars["tdd_local_pypi_host"] = tdd_ip
+            extra_vars["py_pve_cloud_backup_version"] = backup_vers
+
+        setup_bdd_run = ansible_runner.run(
+            project_dir=os.getcwd(),
+            playbook="pxc.cloud.setup_backup_daemon",
+            inventory=temp_dyn_lxcs_inv.name,
+            verbosity=request.config.getoption("--ansible-verbosity"),
+            extravars=extra_vars,
+        )
+
+        assert setup_bdd_run.rc == 0
+
+        yield
+
+        if not request.config.getoption("--skip-cleanup"):
+            # always run the destroy
+            destroy_lxcs_run = ansible_runner.run(
                 project_dir=os.getcwd(),
-                playbook="pxc.cloud.sync_lxcs",
+                playbook="playbooks/destroy_lxcs.yaml",
                 inventory=temp_dyn_lxcs_inv.name,
                 verbosity=request.config.getoption("--ansible-verbosity"),
             )
-
-            assert create_lxc_run.rc == 0
-
-            # for local tdd with development watchdogs
-            extra_vars = {}
-            backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
-
-            if backup_vers:
-                extra_vars["tdd_local_pypi_host"] = tdd_ip
-                extra_vars["py_pve_cloud_backup_version"] = backup_vers
-
-            setup_bdd_run = ansible_runner.run(
-                project_dir=os.getcwd(),
-                playbook="pxc.cloud.setup_backup_daemon",
-                inventory=temp_dyn_lxcs_inv.name,
-                verbosity=request.config.getoption("--ansible-verbosity"),
-                extravars=extra_vars,
-            )
-
-            assert setup_bdd_run.rc == 0
-
-        finally:
-            if not request.config.getoption("--skip-cleanup"):
-                # always run the destroy
-                destroy_lxcs_run = ansible_runner.run(
-                    project_dir=os.getcwd(),
-                    playbook="playbooks/destroy_lxcs.yaml",
-                    inventory=temp_dyn_lxcs_inv.name,
-                    verbosity=request.config.getoption("--ansible-verbosity"),
-                )
-                assert destroy_lxcs_run.rc == 0
+            assert destroy_lxcs_run.rc == 0
 
 
 @pytest.fixture(scope="session")
