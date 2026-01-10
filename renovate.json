@@ -3,7 +3,5 @@
   "extends": [
     "config:recommended"
   ],
-  "terraform": {
-    "managerFilePatterns": ["tests/scenarios/backup/versions.tf"]
-  }
+  "ignorePresets": [":ignoreModulesAndTests"]
 }
