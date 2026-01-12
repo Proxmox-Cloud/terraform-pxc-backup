@@ -172,7 +172,7 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
         ]
     )
 
-    launch_restore_job(restore_args)
+    await launch_restore_job(restore_args)
 
     # wait for the restore job to finish
     while True:
