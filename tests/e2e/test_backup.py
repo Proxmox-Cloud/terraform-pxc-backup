@@ -5,6 +5,7 @@ import random
 import string
 import struct
 import time
+import yaml
 
 import dns.query
 import dns.tsigkeyring
@@ -19,7 +20,7 @@ from kubernetes import client
 from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
-from pve_cloud_backup.daemon.brctl import get_parser, launch_restore_job
+from pve_cloud_backup.daemon.brctl import get_parser, launch_restore_job, list_backup_details_remote
 from pve_cloud_backup.daemon.rpc import Command
 
 logger = logging.getLogger(__name__)
@@ -152,25 +153,39 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
 
     brctl_parser = get_parser()
 
-    restore_args = brctl_parser.parse_args(
-        [
-            "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
-            "--target-pve",
-            f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
-            "--stack-name",
-            "pytest-k8s",
-            "--image",
-            image,
-            "--timestamp",
-            latest_timestamp,
-            "--namespace-mapping",
-            "test-backup-source:test-backup-restore",
-            "--auto-scale",
-            "--auto-delete",
-        ]
-    )
+    # list details debug
+    await list_backup_details_remote(brctl_parser.parse_args(
+            [
+                "backup-details",
+                "--bdd-host",
+                ddns_ips[0],
+                "--timestamp",
+                latest_timestamp,
+            ]
+        ))
+
+    # write dummy kubespray inv file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
+        temp_file.write(yaml.safe_dump({"target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}", "stack_name": "pytest-k8s"}))
+        temp_file.flush()
+
+        restore_args = brctl_parser.parse_args(
+            [
+                "restore-k8s",
+                "--bdd-host",
+                ddns_ips[0],
+                "--inventory",
+                temp_file.name,
+                "--image",
+                image,
+                "--timestamp",
+                latest_timestamp,
+                "--namespace-mapping",
+                "test-backup-source:test-backup-restore",
+                "--auto-scale",
+                "--auto-delete",
+            ]
+        )
 
     await launch_restore_job(restore_args)
 

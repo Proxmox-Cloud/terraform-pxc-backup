@@ -29,6 +29,24 @@ module "backup_source" {
   namespace = "test-backup-source"
 }
 
+# print helm release secrets in backup test
+resource "helm_release" "nginx_test" {
+  depends_on = [ module.backup_source ]
+  repository = "https://charts.bitnami.com/bitnami"
+  chart = "nginx"
+  version = "22.4.2"
+  create_namespace = true
+  namespace = "test-backup-source"
+  
+  name = "nginx"
+  values = [
+    <<-YAML
+      service:
+        type: ClusterIP
+    YAML
+  ]
+}
+
 # same deployment that will serve as the restore target namespace
 module "backup_restore" {
   source = "./deployment"
@@ -48,3 +66,5 @@ module "tf_backup"{
   backup_image_base = var.backup_image_base
   backup_image_version = var.backup_image_version
 }
+
+

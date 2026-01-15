@@ -10,6 +10,10 @@ terraform {
       source = "hashicorp/tls"
       version = "4.1.0"
     }
+    helm = {
+      source = "hashicorp/helm"
+      version = "3.1.1"
+    }
     pxc = {
       source = "Proxmox-Cloud/pxc"
       version = "~>0.1.6" # pxc sed ci - DONT REMOVE COMMENT!
