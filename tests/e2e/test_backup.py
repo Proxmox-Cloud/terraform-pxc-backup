@@ -5,13 +5,13 @@ import random
 import string
 import struct
 import time
-import yaml
 
 import dns.query
 import dns.tsigkeyring
 import dns.zone
 import pytest
 import requests
+import yaml
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509.oid import NameOID
@@ -20,7 +20,8 @@ from kubernetes import client
 from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
-from pve_cloud_backup.daemon.brctl import get_parser, launch_restore_job, list_backup_details_remote
+from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
+                                           list_backup_details_remote)
 from pve_cloud_backup.daemon.rpc import Command
 
 logger = logging.getLogger(__name__)
@@ -154,7 +155,8 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
     brctl_parser = get_parser()
 
     # list details debug
-    await list_backup_details_remote(brctl_parser.parse_args(
+    await list_backup_details_remote(
+        brctl_parser.parse_args(
             [
                 "backup-details",
                 "--bdd-host",
@@ -162,11 +164,19 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
                 "--timestamp",
                 latest_timestamp,
             ]
-        ))
+        )
+    )
 
     # write dummy kubespray inv file
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
-        temp_file.write(yaml.safe_dump({"target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}", "stack_name": "pytest-k8s"}))
+        temp_file.write(
+            yaml.safe_dump(
+                {
+                    "target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
+                    "stack_name": "pytest-k8s",
+                }
+            )
+        )
         temp_file.flush()
 
         restore_args = brctl_parser.parse_args(
