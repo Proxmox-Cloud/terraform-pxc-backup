@@ -16,30 +16,24 @@ variable "backup_image_base" {
   default = null
 }
 
-variable "backup_config" {
-  description = "Configuration for backup system"
-  type = object({
-    backup_daemon_address = string
-    patroni_stack = string
-    k8s_stacks = map(object({
-      include_namespaces  = optional(list(string))
-      exclude_namespaces  = optional(list(string))
-    }))
-    git_repos      = optional(list(string))
-    nextcloud_files = optional(list(string))
-  })
+variable "backup_daemon_address" {
+  type = string
+  description = "Static ip address to proxmox cloud backup server."
 }
 
-variable "bandwidth_limitation" {
+variable "patroni_stack" {
   type = string
-  description = "Bandwith limitation for ingress and egress. Prevent locking up the network through backups."
-  default = "50M"
+  description = "Stack fqdn of the patroni lxcs for backing up postgres dumps."
 }
 
-variable "cron_schedule" {
+variable "k8s_stack" {
   type = string
-  description = "How often the backup job should run"
-  default = "0 4 * * *" # This runs the job every second day
+  description = "Stack fqdn of k8s stack that we will backup, should be stack_name + cloud_domain for filtering in proxmox api."
+}
+
+variable "k8s_namespaces" {
+  type = list(string)
+  description = "List of k8s namespaces that should be in the backup."
 }
 
 variable "git_repo_ssh_key" {
@@ -58,6 +52,12 @@ variable "git_repo_ssh_key_type" {
   }
 }
 
+variable "git_repos" {
+  type = list(string)
+  description = "Git repositories that should be backupped. Requires the git ssh key to be set."
+  default = null
+}
+
 variable "nextcloud_url" {
   type = string
   description = "URL of Nextcloud instance we want to backup files from"
@@ -74,6 +74,24 @@ variable "nextcloud_user" {
   type = string
   description = "Nextcloud user login name."
   default = null
+}
+
+variable "nextcloud_files" {
+  type = list(string)
+  description = "Nextcloud files to backup. Requires url, user and pass to be set."
+  default = null
+}
+
+variable "bandwidth_limitation" {
+  type = string
+  description = "Bandwith limitation for ingress and egress. Prevent locking up the network through backups."
+  default = "50M"
+}
+
+variable "cron_schedule" {
+  type = string
+  description = "How often the backup job should run"
+  default = "0 4 * * *" # This runs the job every second day
 }
 
 variable "qemu_admin_user" {

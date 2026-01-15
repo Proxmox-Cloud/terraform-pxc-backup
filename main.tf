@@ -25,7 +25,13 @@ resource "kubernetes_config_map" "fetcher_config" {
   }
 
   data = {
-    "backup-conf.yaml" = yamlencode(var.backup_config)
+    "backup-conf.yaml" = yamlencode({
+      patroni_stack = var.patroni_stack
+      k8s_stack = var.k8s_stack
+      k8s_namespaces = var.k8s_namespaces
+      git_repos = var.git_repo_ssh_key != null ? var.git_repos : []
+      nextcloud_files = var.nextcloud_url != null && var.nextcloud_user != null && var.nextcloud_pass != null ? var.nextcloud_files : []
+    })
   }
 }
 
@@ -47,7 +53,6 @@ resource "kubernetes_secret" "fetcher_secrets" {
   } : {}
   )
 }
-
 
 
 resource "kubernetes_manifest" "fetcher_cron" {
@@ -75,6 +80,8 @@ resource "kubernetes_manifest" "fetcher_cron" {
                 imagePullPolicy: Always
                 args: [ "fetcher" ]
                 env:
+                  - name: BDD_HOST
+                    value: "${var.backup_daemon_address}"
                   - name: PROXMOXER_HOST
                     value: "${data.pxc_pve_host.host.pve_host}"
                   - name: PROXMOXER_USER

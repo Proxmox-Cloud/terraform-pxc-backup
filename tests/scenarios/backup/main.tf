@@ -37,18 +37,11 @@ module "backup_restore" {
 
 module "tf_backup"{
   source =  "../../../"
-  
-  backup_config = {
-    backup_daemon_address = "main-pytest-backup-lxc.${local.test_pve_conf["pve_test_cloud_domain"]}"
-    patroni_stack = "ha-postgres.${local.test_pve_conf["pve_test_cloud_domain"]}"
-    k8s_stacks = {
-      "pytest-k8s.${local.test_pve_conf["pve_test_cloud_domain"]}" = {
-        include_namespaces = [
-          "test-backup-source"
-        ]
-      }
-    }
-  }
+  backup_daemon_address = "main-pytest-backup-lxc.${local.test_pve_conf["pve_test_cloud_domain"]}"
+  patroni_stack = "ha-postgres.${local.test_pve_conf["pve_test_cloud_domain"]}"
+
+  k8s_stack = "pytest-k8s.${local.test_pve_conf["pve_test_cloud_domain"]}"
+  k8s_namespaces = [ "test-backup-source" ]
 
   bandwidth_limitation = "20M"
 
