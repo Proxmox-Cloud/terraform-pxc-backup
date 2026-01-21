@@ -17,11 +17,13 @@ locals {
   test_pve_conf = yamldecode(file(var.test_pve_conf))
 }
 
-provider "pxc" {
-  target_pve = "${local.test_pve_conf["pve_test_cluster_name"]}.${local.test_pve_conf["pve_test_cloud_domain"]}"
-  k8s_stack_name = "pytest-k8s"
+variable "e2e_kubespray_inv" {
+  type = string
 }
 
+provider "pxc" {
+  kubespray_inv = var.e2e_kubespray_inv
+}
 
 # in this the unit test will make modifications
 module "backup_source" {
@@ -58,7 +60,6 @@ module "tf_backup"{
   backup_daemon_address = "main-pytest-backup-lxc.${local.test_pve_conf["pve_test_cloud_domain"]}"
   patroni_stack = "ha-postgres.${local.test_pve_conf["pve_test_cloud_domain"]}"
 
-  k8s_stack = "pytest-k8s.${local.test_pve_conf["pve_test_cloud_domain"]}"
   k8s_namespaces = [ "test-backup-source" ]
 
   bandwidth_limitation = "20M"

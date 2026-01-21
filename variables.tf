@@ -21,14 +21,10 @@ variable "backup_daemon_address" {
   description = "Static ip address to proxmox cloud backup server."
 }
 
+// todo: needs to be made optional / toggable by flag
 variable "patroni_stack" {
   type = string
   description = "Stack fqdn of the patroni lxcs for backing up postgres dumps."
-}
-
-variable "k8s_stack" {
-  type = string
-  description = "Stack fqdn of k8s stack that we will backup, should be stack_name + cloud_domain for filtering in proxmox api."
 }
 
 variable "k8s_namespaces" {

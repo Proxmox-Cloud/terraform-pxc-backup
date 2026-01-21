@@ -6,7 +6,7 @@ data "pxc_ssh_key" "automation" {
   key_type = "AUTOMATION"
 }
 
-data "pxc_cloud_secret" "patroni" {
+data "pxc_cloud_file_secret" "patroni" {
   secret_name = "patroni.pass"
 }
 
@@ -15,6 +15,14 @@ data "pxc_pve_host" "host" {
 
 module "access_namespace" {
   source = "./modules/access-namespace"
+}
+
+data "pxc_cloud_self" "self" {}
+
+locals {
+  cluster_vars = yamldecode(data.pxc_cloud_self.self.cluster_vars)
+
+  k8s_stack_fqdn = "${data.pxc_cloud_self.self.stack_name}.${local.cluster_vars.pve_cloud_domain}"
 }
 
 # create config map for the backupper
@@ -27,7 +35,7 @@ resource "kubernetes_config_map" "fetcher_config" {
   data = {
     "backup-conf.yaml" = yamlencode({
       patroni_stack = var.patroni_stack
-      k8s_stack = var.k8s_stack
+      k8s_stack = local.k8s_stack_fqdn
       k8s_namespaces = var.k8s_namespaces
       git_repos = var.git_repo_ssh_key != null ? var.git_repos : []
       nextcloud_files = var.nextcloud_url != null && var.nextcloud_user != null && var.nextcloud_pass != null ? var.nextcloud_files : []
@@ -43,7 +51,7 @@ resource "kubernetes_secret" "fetcher_secrets" {
   data = merge({
     "pve-id-rsa" = data.pxc_ssh_key.host_rsa.key
     "qemu-id"= data.pxc_ssh_key.automation.key
-    "patroni-pass" = data.pxc_cloud_secret.patroni.secret
+    "patroni-pass" = data.pxc_cloud_file_secret.patroni.secret
   },
   var.nextcloud_pass != null ? {
     "nextcloud-pass" = var.nextcloud_pass
