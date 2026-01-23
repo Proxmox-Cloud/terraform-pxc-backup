@@ -22,7 +22,7 @@ variable "e2e_kubespray_inv" {
 }
 
 provider "pxc" {
-  kubespray_inv = var.e2e_kubespray_inv
+  inventory = var.e2e_kubespray_inv
 }
 
 # in this the unit test will make modifications
