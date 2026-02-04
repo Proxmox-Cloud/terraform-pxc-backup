@@ -88,7 +88,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
             # always run the destroy
             destroy_lxcs_run = ansible_runner.run(
                 project_dir=os.getcwd(),
-                playbook="playbooks/destroy_lxcs.yaml",
+                playbook="pxc.cloud.destroy_lxcs",
                 inventory=temp_dyn_lxcs_inv.name,
                 verbosity=request.config.getoption("--ansible-verbosity"),
             )
