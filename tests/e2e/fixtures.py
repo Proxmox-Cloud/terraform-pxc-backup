@@ -29,7 +29,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
         yaml.dump(
             {
                 "plugin": "pxc.cloud.lxc_inv",
-                "target_pve": get_test_env["pve_test_cluster_name"]
+                "target_pve": get_test_env["pve_test_primary_cluster_name"]
                 + "."
                 + get_test_env["pve_test_cloud_domain"],
                 "stack_name": "pytest-backup-lxc",
@@ -47,8 +47,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
                     }
                 ],
                 "lxc_global_vars": {"install_prom_systemd_exporter": True},
-                "target_pve_hosts": list(get_test_env["pve_test_hosts"].keys()),
-                "target_pve_hosts": list(get_test_env["pve_test_hosts"].keys()),
+                "target_pve_hosts": list(get_test_env["pve_test_clusters"][get_test_env["pve_test_primary_cluster_name"]].keys()),
                 "root_ssh_pub_key": get_test_env["pve_test_ssh_pub_key"],
             },
             temp_dyn_lxcs_inv,

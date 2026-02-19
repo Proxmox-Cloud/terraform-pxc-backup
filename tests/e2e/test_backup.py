@@ -172,7 +172,7 @@ async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario
         temp_file.write(
             yaml.safe_dump(
                 {
-                    "target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
+                    "target_pve": f"{get_test_env['pve_test_primary_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
                     "stack_name": "pytest-k8s",
                 }
             )
