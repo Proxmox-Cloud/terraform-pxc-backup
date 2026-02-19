@@ -6,7 +6,7 @@ terraform {
     }
     pxc = {
       source = "Proxmox-Cloud/pxc"
-      version = "0.2.9-rc1" # pxc sed ci - DONT REMOVE COMMENT!
+      version = "0.2.9-rc2" # pxc sed ci - DONT REMOVE COMMENT!
     }
   }
 }
