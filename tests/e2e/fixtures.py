@@ -47,7 +47,11 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
                     }
                 ],
                 "lxc_global_vars": {"install_prom_systemd_exporter": True},
-                "target_pve_hosts": list(get_test_env["pve_test_clusters"][get_test_env["pve_test_primary_cluster_name"]].keys()),
+                "target_pve_hosts": list(
+                    get_test_env["pve_test_clusters"][
+                        get_test_env["pve_test_primary_cluster_name"]
+                    ].keys()
+                ),
                 "root_ssh_pub_key": get_test_env["pve_test_ssh_pub_key"],
             },
             temp_dyn_lxcs_inv,
