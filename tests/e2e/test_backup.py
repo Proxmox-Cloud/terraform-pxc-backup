@@ -32,10 +32,10 @@ def random_string(length=16):
 
 
 @pytest.mark.asyncio
-async def test_backup(get_test_env, get_proxmoxer, set_k8s_auth, backup_scenario):
+async def test_backup(get_test_env, get_proxmoxer, get_primary_kubeconfig, backup_scenario):
     logger.info("test backup create and restore")
 
-    kubeconfig = set_k8s_auth
+    kubeconfig = get_primary_kubeconfig
 
     # auth kubernetes api
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
