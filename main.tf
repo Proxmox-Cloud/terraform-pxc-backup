@@ -82,6 +82,14 @@ resource "kubernetes_manifest" "fetcher_cron" {
                 kubernetes.io/egress-bandwidth: ${var.bandwidth_limitation}
                 kubernetes.io/ingress-bandwidth: ${var.bandwidth_limitation}
             spec:
+    %{ if var.node_selector != null }
+              nodeSelector:
+                ${indent(12, yamlencode(var.node_selector))}
+    %{ endif }
+    %{ if var.tolerations != null }
+              tolerations:
+                ${indent(12, yamlencode(var.tolerations))}
+    %{ endif }
               containers:
               - name: fetcher
                 image: ${local.backup_image_base}:${local.backup_image_version}

@@ -95,3 +95,15 @@ variable "qemu_admin_user" {
   description = "user to login to pve cloud vms with"
   default = "admin"
 }
+
+variable "node_selector" {
+  type = map(string)
+  default = null
+  description = "Optional node selector for controller deployments/jobs."
+}
+
+variable "tolerations" {
+  type = list(map(string))
+  default = null
+  description = "Tolerations to add to all controller deployments/jobs."
+}
