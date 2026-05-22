@@ -3,3 +3,4 @@ __pycache__
 .terraform.lock.hcl
 
 .pytest_cache
+.terraformrc-e2e

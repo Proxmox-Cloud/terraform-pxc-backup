@@ -1,6 +1,6 @@
 provider_installation {
   filesystem_mirror {
-    path    = "/home/cloud/.tdd-providers"
+    path    = "/home/{{ user_name }}/.tdd-providers"
     include = ["Proxmox-Cloud/*"]
   }
   direct {}
