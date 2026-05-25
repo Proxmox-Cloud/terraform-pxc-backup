@@ -57,7 +57,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
             temp_dyn_lxcs_inv,
         )
         temp_dyn_lxcs_inv.flush()
-        
+
         # we have to prefix the full path otherwise ansible-runner might ignore and use pxc collection from default path
         # this is a bug/error inside ansible-runner since it should honor the default ANSIBLE_COLLECTIONS_PATH env variable
         logger.info(f"collections path {os.getenv('ANSIBLE_COLLECTIONS_PATH')}")
