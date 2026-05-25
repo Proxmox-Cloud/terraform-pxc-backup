@@ -32,6 +32,13 @@ def random_string(length=16):
 
 
 @pytest.mark.asyncio
+async def test_create_lxc(
+    get_test_env, create_backup_lxc
+):
+    logger.info("test create backup lxc")
+    
+
+@pytest.mark.asyncio
 async def test_backup(
     get_test_env, get_proxmoxer, get_primary_kubeconfig, backup_scenario
 ):

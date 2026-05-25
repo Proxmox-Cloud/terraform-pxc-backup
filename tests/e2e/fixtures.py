@@ -57,10 +57,13 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
             temp_dyn_lxcs_inv,
         )
         temp_dyn_lxcs_inv.flush()
-
+        
+        # we have to prefix the full path otherwise ansible-runner might ignore and use pxc collection from default path
+        # this is a bug/error inside ansible-runner since it should honor the default ANSIBLE_COLLECTIONS_PATH env variable
+        logger.info(f"collections path {os.getenv('ANSIBLE_COLLECTIONS_PATH')}")
         create_lxc_run = ansible_runner.run(
             project_dir=os.getcwd(),
-            playbook="pxc.cloud.sync_lxcs",
+            playbook=f"{os.getenv('ANSIBLE_COLLECTIONS_PATH')}/ansible_collections/pxc/cloud/playbooks/sync_lxcs.yaml",
             inventory=temp_dyn_lxcs_inv.name,
             verbosity=request.config.getoption("--ansible-verbosity"),
         )
@@ -77,7 +80,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
 
         setup_bdd_run = ansible_runner.run(
             project_dir=os.getcwd(),
-            playbook="pxc.cloud.setup_backup_daemon",
+            playbook=f"{os.getenv('ANSIBLE_COLLECTIONS_PATH')}/ansible_collections/pxc/cloud/playbooks/setup_backup_daemon.yaml",
             inventory=temp_dyn_lxcs_inv.name,
             verbosity=request.config.getoption("--ansible-verbosity"),
             extravars=extra_vars,
@@ -91,7 +94,7 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
             # always run the destroy
             destroy_lxcs_run = ansible_runner.run(
                 project_dir=os.getcwd(),
-                playbook="pxc.cloud.destroy_lxcs",
+                playbook=f"{os.getenv('ANSIBLE_COLLECTIONS_PATH')}/ansible_collections/pxc/cloud/playbooks/destroy_lxcs.yaml",
                 inventory=temp_dyn_lxcs_inv.name,
                 verbosity=request.config.getoption("--ansible-verbosity"),
             )
