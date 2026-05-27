@@ -22,7 +22,7 @@ from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
-                                            list_backup_details_remote)
+                                           list_backup_details_remote)
 from pve_cloud_backup.daemon.rpc import Command
 
 logger = logging.getLogger(__name__)
