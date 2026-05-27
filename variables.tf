@@ -107,3 +107,8 @@ variable "tolerations" {
   default = null
   description = "Tolerations to add to all controller deployments/jobs."
 }
+
+variable "bdd_stack_name" {
+  type = string
+  description = "Stack name of the BDD LXC used to locate the BDD TLS certificate secret in the cloud secrets store."
+}

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import pickle
 import random
+import ssl
 import string
 import struct
 import time
@@ -21,7 +22,7 @@ from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
-                                           list_backup_details_remote)
+                                            list_backup_details_remote)
 from pve_cloud_backup.daemon.rpc import Command
 
 logger = logging.getLogger(__name__)
@@ -141,7 +142,10 @@ async def test_backup(
     time.sleep(10)  # wait for borg repo lock to be released
 
     # call brctl methods
-    reader, writer = await asyncio.open_connection(ddns_ips[0], 8085)
+    ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    reader, writer = await asyncio.open_connection(ddns_ips[0], 8085, ssl=ssl_ctx)
     writer.write(struct.pack("B", Command.LIST_BACKUPS.value))
     await writer.drain()
 

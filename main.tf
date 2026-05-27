@@ -10,6 +10,10 @@ data "pxc_cloud_file_secret" "patroni" {
   secret_name = "patroni.pass"
 }
 
+data "pxc_cloud_secret" "bdd_tls_ca" {
+  secret_name = "${var.bdd_stack_name}-bdd-tls-certs"
+}
+
 data "pxc_pve_host" "host" {
 }
 
@@ -62,104 +66,34 @@ resource "kubernetes_secret" "fetcher_secrets" {
   )
 }
 
+resource "kubernetes_secret" "fetcher_tls_ca" {
+  metadata {
+    name = "fetcher-tls-ca"
+    namespace =  module.access_namespace.namespace
+  }
+  data = {
+    "ca_cert.crt" = jsondecode(data.pxc_cloud_secret.bdd_tls_ca.secret_data)["ca_cert.crt"]
+  }
+}
+
 
 resource "kubernetes_manifest" "fetcher_cron" {
-  manifest = yamldecode(<<-YML
-    apiVersion: batch/v1
-    kind: CronJob
-    metadata:
-      name: fetcher-cron
-      namespace: ${ module.access_namespace.namespace}
-    spec:
-      schedule: "${var.cron_schedule}"
-      jobTemplate:
-        spec:
-          backoffLimit: 0
-          template:
-            metadata:
-              annotations:
-                # limit the bandwidth to not crash ceph
-                kubernetes.io/egress-bandwidth: ${var.bandwidth_limitation}
-                kubernetes.io/ingress-bandwidth: ${var.bandwidth_limitation}
-            spec:
-    %{ if var.node_selector != null }
-              nodeSelector:
-                ${indent(12, yamlencode(var.node_selector))}
-    %{ endif }
-    %{ if var.tolerations != null }
-              tolerations:
-                ${indent(12, yamlencode(var.tolerations))}
-    %{ endif }
-              containers:
-              - name: fetcher
-                image: ${local.backup_image_base}:${local.backup_image_version}
-                imagePullPolicy: Always
-                args: [ "fetcher" ]
-                env:
-                  - name: BDD_HOST
-                    value: "${var.backup_daemon_address}"
-                  - name: PROXMOXER_HOST
-                    value: "${data.pxc_pve_host.host.pve_host}"
-                  - name: PROXMOXER_USER
-                    value: 'root'
-                  - name: QEMU_ADMIN_USER
-                    value: '${var.qemu_admin_user}'
-                  - name: PATRONI_PASS
-                    valueFrom:
-                      secretKeyRef:
-                        name: fetcher-secrets
-                        key: patroni-pass
-      %{ if var.nextcloud_url != null && var.nextcloud_user != null && var.nextcloud_pass != null }
-                  - name: NEXTCLOUD_USER
-                    value: '${var.nextcloud_user}'
-                  - name: NEXTCLOUD_BASE
-                    value: '${var.nextcloud_url}'
-      %{ endif }
-                volumeMounts:
-                - mountPath: /etc/ceph/ceph.conf
-                  name: ceph-config
-                  subPath: "ceph.conf"
-                - mountPath: /opt/backup-conf.yaml
-                  name: fetcher-config
-                  subPath: "backup-conf.yaml"
-                - mountPath: /etc/pve/priv/ceph.client.admin.keyring
-                  name: ceph-secrets
-                  subPath: "ceph-admin-keyring"
-                - mountPath: /root/.ssh/id_rsa
-                  name: fetcher-secrets
-                  subPath: "pve-id-rsa"
-                - mountPath: /opt/id_proxmox
-                  name: fetcher-secrets
-                  subPath: "pve-id-rsa"
-                - mountPath: /opt/id_qemu
-                  name: fetcher-secrets
-                  subPath: "qemu-id"
-      %{ if var.nextcloud_url != null && var.nextcloud_user != null && var.nextcloud_pass != null }
-                - mountPath: /opt/nextcloud.pass
-                  name: fetcher-secrets
-                  subPath: nextcloud-pass
-      %{ endif }
-      %{ if var.git_repo_ssh_key != null && var.git_repo_ssh_key_type != null }
-                - mountPath: /root/.ssh/id_${var.git_repo_ssh_key_type}
-                  name: fetcher-secrets
-                  subPath: id-git
-      %{ endif }
-              restartPolicy: Never # see logs of failed containers
-              volumes:
-              - name: fetcher-config
-                configMap:
-                  name: fetcher-config
-              - name: ceph-config
-                configMap:
-                  name: ceph-config
-              - name: ceph-secrets
-                secret:
-                  secretName: ceph-secrets
-              - name: fetcher-secrets
-                secret:
-                  secretName: fetcher-secrets
-                  defaultMode: 256 # ssh key permissions
-  YML
-  )
+  manifest = yamldecode(templatefile("${path.module}/templates/fetcher-cron.yaml.tpl", {
+    namespace              = module.access_namespace.namespace
+    cron_schedule          = var.cron_schedule
+    bandwidth_limitation   = var.bandwidth_limitation
+    backup_image           = local.backup_image_base
+    backup_image_version   = local.backup_image_version
+    backup_daemon_address  = var.backup_daemon_address
+    pve_host               = data.pxc_pve_host.host.pve_host
+    qemu_admin_user        = var.qemu_admin_user
+    nextcloud_url          = var.nextcloud_url
+    nextcloud_user         = var.nextcloud_user
+    nextcloud_pass         = var.nextcloud_pass
+    git_repo_ssh_key       = var.git_repo_ssh_key
+    git_repo_ssh_key_type  = var.git_repo_ssh_key_type
+    node_selector          = var.node_selector
+    tolerations            = var.tolerations
+  }))
 }
 

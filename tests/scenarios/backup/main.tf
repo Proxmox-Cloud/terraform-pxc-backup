@@ -59,6 +59,7 @@ module "tf_backup"{
   source =  "../../../"
   backup_daemon_address = "main-pytest-backup-lxc.${local.test_pve_conf["pve_test_cloud_domain"]}"
   patroni_stack = "ha-postgres.${local.test_pve_conf["pve_test_cloud_domain"]}"
+  bdd_stack_name = "pytest-backup-lxc"
 
   k8s_namespaces = [ "test-backup-source" ]
 
@@ -66,6 +67,19 @@ module "tf_backup"{
 
   backup_image_base = var.backup_image_base
   backup_image_version = var.backup_image_version
+
+  node_selector = {
+    "kubernetes.io/os" = "linux"
+  }
+
+  tolerations = [
+    {
+      "key" = "example"
+      "operator" = "Equal"
+      "value" = "test"
+      "effect" = "NoSchedule"
+     }
+  ]
 }
 
 
