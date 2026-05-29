@@ -1,3 +1,6 @@
+# todo: this should be refactored into the proper terraform resources
+# this is only in a template format to try to appease an ai agent that 
+# is incapable of dealing with heredoc yamldecode in tf files ;DDD
 apiVersion: batch/v1
 kind: CronJob
 metadata:

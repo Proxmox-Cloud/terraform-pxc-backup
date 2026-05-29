@@ -29,30 +29,28 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
         yaml.dump(
             {
                 "plugin": "pxc.cloud.lxc_inv",
-                "target_pve": get_test_env["pve_test_primary_cluster_name"]
+                "target_pve": get_test_env["pve_test_cluster_name"]
                 + "."
-                + get_test_env["pve_test_cloud_domain"],
+                + get_test_env["cloud_inventory"]["pve_cloud_domain"],
                 "stack_name": "pytest-backup-lxc",
                 "lxcs": [
                     {
                         "hostname": "main",
                         "parameters": {
-                            "rootfs": f"volume={get_test_env["pve_test_disk_storage_id"]}:10",
+                            "rootfs": f"volume={get_test_env["pve_vm_storage_id"]}:10",
                             "cores": 2,
                             "memory": 1024,
                             "net0": f"name=pve,bridge=vmbr0,firewall=1,ip=dhcp",
-                            "mp0": f"volume={get_test_env["pve_test_disk_storage_id"]}:20,mp=/mnt/backup-drive",
+                            "mp0": f"volume={get_test_env["pve_vm_storage_id"]}:20,mp=/mnt/backup-drive",
                         },
                         "vars": {"PXC_BACKUP_BASE_DIR": "/mnt/backup-drive"},
                     }
                 ],
                 "lxc_global_vars": {"install_prom_systemd_exporter": True},
                 "target_pve_hosts": list(
-                    get_test_env["pve_test_clusters"][
-                        get_test_env["pve_test_primary_cluster_name"]
-                    ].keys()
+                    get_test_env["pve_test_cluster_hosts"].keys()
                 ),
-                "root_ssh_pub_key": get_test_env["pve_test_ssh_pub_key"],
+                "root_ssh_pub_key": get_test_env["ssh_pub_key"],
             },
             temp_dyn_lxcs_inv,
         )

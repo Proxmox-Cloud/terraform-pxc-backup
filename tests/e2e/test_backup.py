@@ -130,10 +130,10 @@ async def test_backup(
     logger.info(backup_lxc)
 
     resolver = dns.resolver.Resolver()
-    resolver.nameservers = [get_test_env["pve_test_cloud_inv"]["bind_master_ip"]]
+    resolver.nameservers = [get_test_env["cloud_inventory"]["bind_master_ip"]]
 
     ddns_answer = resolver.resolve(
-        f"{backup_lxc['name']}.{get_test_env['pve_test_cloud_domain']}"
+        f"{backup_lxc['name']}.{get_test_env['cloud_inventory']['pve_cloud_domain']}"
     )
     ddns_ips = [rdata.to_text() for rdata in ddns_answer]
     logger.info(ddns_ips)
@@ -183,7 +183,7 @@ async def test_backup(
         temp_file.write(
             yaml.safe_dump(
                 {
-                    "target_pve": f"{get_test_env['pve_test_primary_cluster_name']}.{get_test_env['pve_test_cloud_domain']}",
+                    "target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
                     "stack_name": "pytest-k8s",
                 }
             )
