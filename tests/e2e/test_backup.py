@@ -40,7 +40,11 @@ async def test_create_lxc(get_test_env, create_backup_lxc):
 
 @pytest.mark.asyncio
 async def test_backup(
-    get_test_env, get_proxmoxer, get_primary_kubeconfig, backup_scenario, get_kubespray_inv
+    get_test_env,
+    get_proxmoxer,
+    get_primary_kubeconfig,
+    backup_scenario,
+    get_kubespray_inv,
 ):
     logger.info("test backup create and restore")
 
