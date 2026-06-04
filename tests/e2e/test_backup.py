@@ -24,6 +24,7 @@ from kubernetes.stream import stream
 from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
                                            list_backup_details_remote)
 from pve_cloud_backup.daemon.rpc import Command
+from pve_cloud_test.cloud_fixtures import *
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ async def test_create_lxc(get_test_env, create_backup_lxc):
 
 @pytest.mark.asyncio
 async def test_backup(
-    get_test_env, get_proxmoxer, get_primary_kubeconfig, backup_scenario
+    get_test_env, get_proxmoxer, get_primary_kubeconfig, backup_scenario, get_kubespray_inv
 ):
     logger.info("test backup create and restore")
 
@@ -178,35 +179,23 @@ async def test_backup(
         )
     )
 
-    # write dummy kubespray inv file
-    with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
-        temp_file.write(
-            yaml.safe_dump(
-                {
-                    "target_pve": f"{get_test_env['pve_test_cluster_name']}.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
-                    "stack_name": "pytest-k8s",
-                }
-            )
-        )
-        temp_file.flush()
-
-        restore_args = brctl_parser.parse_args(
-            [
-                "restore-k8s",
-                "--bdd-host",
-                ddns_ips[0],
-                "--inventory",
-                temp_file.name,
-                "--image",
-                image,
-                "--timestamp",
-                latest_timestamp,
-                "--namespace-mapping",
-                "test-backup-source:test-backup-restore",
-                "--auto-scale",
-                "--auto-delete",
-            ]
-        )
+    restore_args = brctl_parser.parse_args(
+        [
+            "restore-k8s",
+            "--bdd-host",
+            ddns_ips[0],
+            "--inventory",
+            get_kubespray_inv,
+            "--image",
+            image,
+            "--timestamp",
+            latest_timestamp,
+            "--namespace-mapping",
+            "test-backup-source:test-backup-restore",
+            "--auto-scale",
+            "--auto-delete",
+        ]
+    )
 
     await launch_restore_job(restore_args)
 
