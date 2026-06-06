@@ -69,6 +69,8 @@ async def test_backup(
     filename = f"/mnt/data/{random_string(12)}.txt"
     content = random_string(32)
 
+    logger.info(f"filename {filename}, content {content}")
+
     resp = stream(
         v1.connect_get_namespaced_pod_exec,
         pod_name,
@@ -79,6 +81,9 @@ async def test_backup(
         stdout=True,
         tty=False,
     )
+    
+    # give ceph some time to write out before starting backup job that will snapshot
+    time.sleep(10)
 
     # trigger the backup cron and monitor
     cronjob_name = "fetcher-cron"
