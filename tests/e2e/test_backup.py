@@ -81,7 +81,7 @@ async def test_backup(
         stdout=True,
         tty=False,
     )
-    
+
     # give ceph some time to write out before starting backup job that will snapshot
     time.sleep(10)
 
