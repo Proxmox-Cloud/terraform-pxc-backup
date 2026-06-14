@@ -97,7 +97,9 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
 
 
 @cloud_fixture("scenario")
-def backup_scenario(request, get_test_env, get_k8s_api_v1, get_kubespray_inv, create_backup_lxc):
+def backup_scenario(
+    request, get_test_env, get_k8s_api_v1, get_kubespray_inv, create_backup_lxc
+):
     scenario_name = "backup"
 
     extra_apply_env = {}
@@ -109,9 +111,21 @@ def backup_scenario(request, get_test_env, get_k8s_api_v1, get_kubespray_inv, cr
         extra_apply_env["TF_VAR_backup_image_version"] = backup_vers
 
     apply(
-        "pxc-backup", scenario_name, get_k8s_api_v1, get_test_env, get_kubespray_inv, extra_apply_env
+        "pxc-backup",
+        scenario_name,
+        get_k8s_api_v1,
+        get_test_env,
+        get_kubespray_inv,
+        extra_apply_env,
     )  # this will wait till everything is running after apply
 
     yield
 
-    destroy("pxc-backup", scenario_name, get_k8s_api_v1, get_test_env, get_kubespray_inv, extra_apply_env)
+    destroy(
+        "pxc-backup",
+        scenario_name,
+        get_k8s_api_v1,
+        get_test_env,
+        get_kubespray_inv,
+        extra_apply_env,
+    )
