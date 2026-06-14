@@ -19,7 +19,7 @@ from pve_cloud_test.terraform import apply, destroy
 logger = logging.getLogger(__name__)
 
 
-@cloud_fixture("backup")
+@cloud_fixture("lxc")
 def create_backup_lxc(request, get_proxmoxer, get_test_env):
     logger.info("test create backup lxc")
 
@@ -86,33 +86,32 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
 
         yield
 
-        if not request.config.getoption("--skip-cleanup"):
-            # always run the destroy
-            destroy_lxcs_run = ansible_runner.run(
-                project_dir=os.getcwd(),
-                playbook=f"{os.getenv('ANSIBLE_COLLECTIONS_PATH')}/ansible_collections/pxc/cloud/playbooks/destroy_lxcs.yaml",
-                inventory=temp_dyn_lxcs_inv.name,
-                verbosity=request.config.getoption("--ansible-verbosity"),
-            )
-            assert destroy_lxcs_run.rc == 0
+        # always run the destroy
+        destroy_lxcs_run = ansible_runner.run(
+            project_dir=os.getcwd(),
+            playbook=f"{os.getenv('ANSIBLE_COLLECTIONS_PATH')}/ansible_collections/pxc/cloud/playbooks/destroy_lxcs.yaml",
+            inventory=temp_dyn_lxcs_inv.name,
+            verbosity=request.config.getoption("--ansible-verbosity"),
+        )
+        assert destroy_lxcs_run.rc == 0
 
 
-@pytest.fixture(scope="session")
-def backup_scenario(request, set_pve_cloud_auth, get_k8s_api_v1, create_backup_lxc):
+@cloud_fixture("scenario")
+def backup_scenario(request, get_test_env, get_k8s_api_v1, get_kubespray_inv, create_backup_lxc):
     scenario_name = "backup"
+
+    extra_apply_env = {}
 
     backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
     if backup_vers:
-        os.environ["TF_VAR_backup_image_base"] = f"{tdd_ip}:5000/pve-cloud-backup"
-        os.environ["TF_VAR_backup_image_version"] = backup_vers
+        extra_apply_env["TF_VAR_backup_image_base"] = f"{tdd_ip}:5000/pve-cloud-backup"
+        extra_apply_env["TF_VAR_backup_image_version"] = backup_vers
 
-    if not request.config.getoption("--skip-apply"):
-        apply(
-            "pxc-backup", scenario_name, get_k8s_api_v1, True, True
-        )  # this will wait till everything is running after apply
+    apply(
+        "pxc-backup", scenario_name, get_k8s_api_v1, get_test_env, get_kubespray_inv, extra_apply_env
+    )  # this will wait till everything is running after apply
 
     yield
 
-    if not request.config.getoption("--skip-cleanup"):
-        destroy(scenario_name)
+    destroy("pxc-backup", scenario_name, get_k8s_api_v1, get_test_env, get_kubespray_inv, extra_apply_env)
