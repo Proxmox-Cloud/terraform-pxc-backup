@@ -32,11 +32,18 @@ module "backup_source" {
 }
 
 # print helm release secrets in backup test
-resource "helm_release" "nginx_test" {
-  depends_on = [ module.backup_source ]
-  repository = "https://charts.bitnami.com/bitnami"
+resource "pxc_helm_mirror" "nginx_bitnami" {
+  source_repository = "https://charts.bitnami.com/bitnami"
+  source_name = "bitnami"
   chart = "nginx"
   version = "22.4.2"
+}
+
+resource "helm_release" "nginx_test" {
+  depends_on = [ module.backup_source ]
+  repository = pxc_helm_mirror.nginx_bitnami.repository_out
+  chart = pxc_helm_mirror.nginx_bitnami.chart
+  version = pxc_helm_mirror.nginx_bitnami.version
   create_namespace = true
   namespace = "test-backup-source"
   
