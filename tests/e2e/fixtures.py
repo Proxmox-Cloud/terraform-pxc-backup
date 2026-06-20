@@ -60,12 +60,14 @@ def create_backup_lxc(request, get_proxmoxer, get_test_env):
             extra_vars["tdd_local_pypi_host"] = tdd_ip
             extra_vars["py_pve_cloud_backup_version"] = backup_vers
 
-        collections_path = os.getenv('ANSIBLE_COLLECTIONS_PATH')
-        with run_playbook(request, temp_dyn_lxcs_inv.name,
+        collections_path = os.getenv("ANSIBLE_COLLECTIONS_PATH")
+        with run_playbook(
+            request,
+            temp_dyn_lxcs_inv.name,
             f"{collections_path}/ansible_collections/pxc/cloud/playbooks/sync_lxcs.yaml",
             f"{collections_path}/ansible_collections/pxc/cloud/playbooks/setup_backup_daemon.yaml",
             destroy_playbook=f"{collections_path}/ansible_collections/pxc/cloud/playbooks/destroy_lxcs.yaml",
-            extra_vars=extra_vars
+            extra_vars=extra_vars,
         ):
             yield
 
