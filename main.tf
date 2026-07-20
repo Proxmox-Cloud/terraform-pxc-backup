@@ -17,6 +17,8 @@ data "pxc_cloud_secret" "bdd_tls_ca" {
 data "pxc_pve_host" "host" {
 }
 
+# todo: ceph presence should be auto detected and made optional
+# for proxmox clusters with zfs only storage for k8s
 module "access_namespace" {
   source = "./modules/access-namespace"
 }

@@ -105,3 +105,42 @@ def backup_scenario(
         get_kubespray_inv,
         extra_apply_env,
     )
+
+
+@cloud_fixture("secondary")
+def secondary_scenario(
+    request,
+    backup_scenario,
+    get_test_env,
+    get_k8s_secondary_api_v1,
+    get_secondary_kubespray_inv,
+):
+    scenario_name = "secondary"
+
+    extra_apply_env = {}
+
+    backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
+
+    if backup_vers:
+        extra_apply_env["TF_VAR_backup_image_base"] = f"{tdd_ip}:5000/pve-cloud-backup"
+        extra_apply_env["TF_VAR_backup_image_version"] = backup_vers
+
+    apply(
+        "pxc-backup",
+        scenario_name,
+        get_k8s_secondary_api_v1,
+        get_test_env,
+        get_secondary_kubespray_inv,
+        extra_apply_env,
+    )  # this will wait till everything is running after apply
+
+    yield
+
+    destroy(
+        "pxc-backup",
+        scenario_name,
+        get_k8s_secondary_api_v1,
+        get_test_env,
+        get_secondary_kubespray_inv,
+        extra_apply_env,
+    )

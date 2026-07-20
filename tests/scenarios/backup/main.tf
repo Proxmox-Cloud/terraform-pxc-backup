@@ -27,8 +27,9 @@ provider "pxc" {
 
 # in this the unit test will make modifications
 module "backup_source" {
-  source = "./deployment"
+  source = "../deployment"
   namespace = "test-backup-source"
+  storage_class_name = "csi-rbd-sc-${local.test_pve_conf["ceph_csi_storage_pool"]}"
 }
 
 # print helm release secrets in backup test
@@ -58,8 +59,9 @@ resource "helm_release" "nginx_test" {
 
 # same deployment that will serve as the restore target namespace
 module "backup_restore" {
-  source = "./deployment"
+  source = "../deployment"
   namespace = "test-backup-restore"
+  storage_class_name = "csi-rbd-sc-${local.test_pve_conf["ceph_csi_storage_pool"]}"
 }
 
 module "tf_backup"{

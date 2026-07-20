@@ -38,28 +38,8 @@ async def test_create_lxc(get_test_env, create_backup_lxc):
     logger.info("test create backup lxc")
 
 
-@pytest.mark.asyncio
-async def test_backup(
-    get_test_env,
-    get_proxmoxer,
-    get_primary_kubeconfig,
-    backup_scenario,
-    get_kubespray_inv,
-):
-    logger.info("test backup create and restore")
 
-    kubeconfig = get_primary_kubeconfig
-
-    # auth kubernetes api
-    with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
-        temp_file.write(kubeconfig)
-        temp_file.flush()
-        config.load_kube_config(config_file=temp_file.name)
-
-    v1 = client.CoreV1Api()
-    v1_batch = client.BatchV1Api()
-
-    # create random file with random content in test pod
+def create_random_content(v1):
     pods = v1.list_namespaced_pod(namespace="test-backup-source")
 
     assert pods.items
@@ -85,7 +65,9 @@ async def test_backup(
     # give ceph some time to write out before starting backup job that will snapshot
     time.sleep(10)
 
-    # trigger the backup cron and monitor
+    return content, filename # written content
+
+def trigger_fetch_job(v1, v1_batch):
     cronjob_name = "fetcher-cron"
     cj = v1_batch.read_namespaced_cron_job(
         name=cronjob_name, namespace="pve-cloud-backup"
@@ -128,7 +110,9 @@ async def test_backup(
 
         logger.info(f"pod {pod.metadata.name} in phase {phase}")
 
-    # find the backup lxc, get its ip and paramiko into it to test the if the backup was created
+
+async def validate_backups_created(get_test_env, get_proxmoxer):
+
     backup_lxc = None
     for node in get_proxmoxer.nodes.get():
         for lxc in get_proxmoxer.nodes(node["node"]).lxc.get():
@@ -188,26 +172,10 @@ async def test_backup(
         )
     )
 
-    restore_args = brctl_parser.parse_args(
-        [
-            "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
-            "--inventory",
-            get_kubespray_inv,
-            "--image",
-            image,
-            "--timestamp",
-            latest_timestamp,
-            "--namespace-mapping",
-            "test-backup-source:test-backup-restore",
-            "--auto-scale",
-            "--auto-delete",
-        ]
-    )
+    return ddns_ips, image, latest_timestamp
 
-    await launch_restore_job(restore_args)
 
+async def validate_restore_job(latest_timestamp, v1, filename, created_content):
     # wait for the restore job to finish
     while True:
         time.sleep(5)  # give pods some time to create / dont spam api
@@ -266,4 +234,95 @@ async def test_backup(
 
     logger.info(resp)
 
-    assert resp.strip() == content
+    assert resp.strip() == created_content
+
+
+@pytest.mark.asyncio
+async def test_backup(
+    get_test_env,
+    get_proxmoxer,
+    get_k8s_api_v1,
+    get_k8s_api_v1_batch,
+    backup_scenario,
+    get_kubespray_inv,
+):
+    logger.info("test backup create and restore")
+
+    # create random file with random content in test pod
+    created_content, filename = create_random_content(get_k8s_api_v1)
+
+    # trigger the backup cron and monitor
+    trigger_fetch_job(get_k8s_api_v1, get_k8s_api_v1_batch)
+
+    # find the backup lxc, get its ip and paramiko into it to test the if the backup was created
+    ddns_ips, image, latest_timestamp = await validate_backups_created(get_test_env, get_proxmoxer)
+
+    brctl_parser = get_parser()
+
+    restore_args = brctl_parser.parse_args(
+        [
+            "restore-k8s",
+            "--bdd-host",
+            ddns_ips[0],
+            "--inventory",
+            get_kubespray_inv,
+            "--image",
+            image,
+            "--timestamp",
+            latest_timestamp,
+            "--namespace-mapping",
+            "test-backup-source:test-backup-restore",
+            "--auto-scale",
+            "--auto-delete",
+        ]
+    )
+
+    await launch_restore_job(restore_args)
+
+    await validate_restore_job(latest_timestamp, get_k8s_api_v1, filename, created_content)
+
+
+@pytest.mark.asyncio
+async def test_secondary_backup(
+    get_test_env,
+    get_proxmoxer,
+    secondary_scenario,
+    get_k8s_secondary_api_v1,
+    get_k8s_secondary_api_v1_batch,
+    get_secondary_kubespray_inv
+):
+    logger.info("testing openebs localpv zfs zpool secondary backup")
+
+    # create random file with random content in test pod
+    created_content, filename = create_random_content(get_k8s_secondary_api_v1)
+
+    # trigger the backup cron and monitor
+    trigger_fetch_job(get_k8s_secondary_api_v1, get_k8s_secondary_api_v1_batch)
+
+    ddns_ips, image, latest_timestamp = await validate_backups_created(get_test_env, get_proxmoxer)
+
+    brctl_parser = get_parser()
+
+    restore_args = brctl_parser.parse_args(
+        [
+            "restore-k8s",
+            "--bdd-host",
+            ddns_ips[0],
+            "--inventory",
+            get_secondary_kubespray_inv,
+            "--image",
+            image,
+            "--timestamp",
+            latest_timestamp,
+            "--namespace-mapping",
+            "test-backup-source:test-backup-restore",
+            "--auto-scale",
+            "--auto-delete",
+            "--log-level",
+            "DEBUG"
+        ]
+    )
+
+    await launch_restore_job(restore_args)
+
+    await validate_restore_job(latest_timestamp, get_k8s_secondary_api_v1, filename, created_content)
