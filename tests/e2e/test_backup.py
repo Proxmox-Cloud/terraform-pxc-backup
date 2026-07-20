@@ -38,7 +38,6 @@ async def test_create_lxc(get_test_env, create_backup_lxc):
     logger.info("test create backup lxc")
 
 
-
 def create_random_content(v1):
     pods = v1.list_namespaced_pod(namespace="test-backup-source")
 
@@ -65,7 +64,8 @@ def create_random_content(v1):
     # give ceph some time to write out before starting backup job that will snapshot
     time.sleep(10)
 
-    return content, filename # written content
+    return content, filename  # written content
+
 
 def trigger_fetch_job(v1, v1_batch):
     cronjob_name = "fetcher-cron"
@@ -255,7 +255,9 @@ async def test_backup(
     trigger_fetch_job(get_k8s_api_v1, get_k8s_api_v1_batch)
 
     # find the backup lxc, get its ip and paramiko into it to test the if the backup was created
-    ddns_ips, image, latest_timestamp = await validate_backups_created(get_test_env, get_proxmoxer)
+    ddns_ips, image, latest_timestamp = await validate_backups_created(
+        get_test_env, get_proxmoxer
+    )
 
     brctl_parser = get_parser()
 
@@ -279,7 +281,9 @@ async def test_backup(
 
     await launch_restore_job(restore_args)
 
-    await validate_restore_job(latest_timestamp, get_k8s_api_v1, filename, created_content)
+    await validate_restore_job(
+        latest_timestamp, get_k8s_api_v1, filename, created_content
+    )
 
 
 @pytest.mark.asyncio
@@ -289,7 +293,7 @@ async def test_secondary_backup(
     secondary_scenario,
     get_k8s_secondary_api_v1,
     get_k8s_secondary_api_v1_batch,
-    get_secondary_kubespray_inv
+    get_secondary_kubespray_inv,
 ):
     logger.info("testing openebs localpv zfs zpool secondary backup")
 
@@ -299,7 +303,9 @@ async def test_secondary_backup(
     # trigger the backup cron and monitor
     trigger_fetch_job(get_k8s_secondary_api_v1, get_k8s_secondary_api_v1_batch)
 
-    ddns_ips, image, latest_timestamp = await validate_backups_created(get_test_env, get_proxmoxer)
+    ddns_ips, image, latest_timestamp = await validate_backups_created(
+        get_test_env, get_proxmoxer
+    )
 
     brctl_parser = get_parser()
 
@@ -319,10 +325,12 @@ async def test_secondary_backup(
             "--auto-scale",
             "--auto-delete",
             "--log-level",
-            "DEBUG"
+            "DEBUG",
         ]
     )
 
     await launch_restore_job(restore_args)
 
-    await validate_restore_job(latest_timestamp, get_k8s_secondary_api_v1, filename, created_content)
+    await validate_restore_job(
+        latest_timestamp, get_k8s_secondary_api_v1, filename, created_content
+    )
