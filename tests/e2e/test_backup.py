@@ -334,3 +334,117 @@ async def test_secondary_backup(
     await validate_restore_job(
         latest_timestamp, get_k8s_secondary_api_v1, filename, created_content
     )
+
+
+@pytest.mark.asyncio
+async def test_restore_zfs_ceph(
+    get_test_env,
+    get_proxmoxer,
+    backup_scenario,
+    secondary_scenario,
+
+    get_k8s_api_v1,
+    get_k8s_api_v1_batch,
+    get_kubespray_inv,
+
+    get_k8s_secondary_api_v1,
+    get_k8s_secondary_api_v1_batch,
+    get_secondary_kubespray_inv,
+):
+    logger.info("testing restore from zfs csi to ceph csi")
+
+    created_content, filename = create_random_content(get_k8s_secondary_api_v1)
+
+    # trigger the backup cron and monitor
+    trigger_fetch_job(get_k8s_secondary_api_v1, get_k8s_secondary_api_v1_batch)
+
+    ddns_ips, image, latest_timestamp = await validate_backups_created(
+        get_test_env, get_proxmoxer
+    )
+
+    brctl_parser = get_parser()
+
+    restore_args = brctl_parser.parse_args(
+        [
+            "restore-k8s",
+            "--bdd-host",
+            ddns_ips[0],
+            "--inventory",
+            get_kubespray_inv,
+            "--image",
+            image,
+            "--timestamp",
+            latest_timestamp,
+            "--namespace-mapping",
+            "test-backup-source:test-backup-restore",
+            "--auto-scale",
+            "--auto-delete",
+            "--log-level",
+            "DEBUG",
+            "--sc-mapping",
+            "openebs-zfspv-zvol:csi-rbd-sc-ssd" # todo: ceph pool needs to be fetched from get_test_env
+        ]
+    )
+
+    await launch_restore_job(restore_args)
+
+    await validate_restore_job(
+        latest_timestamp, get_k8s_api_v1, filename, created_content
+    )
+
+
+@pytest.mark.asyncio
+async def test_restore_ceph_zfs(
+    get_test_env,
+    get_proxmoxer,
+    backup_scenario,
+    secondary_scenario,
+
+    get_k8s_api_v1,
+    get_k8s_api_v1_batch,
+    get_kubespray_inv,
+
+    get_k8s_secondary_api_v1,
+    get_k8s_secondary_api_v1_batch,
+    get_secondary_kubespray_inv,
+):
+    logger.info("testing restore from zfs csi to ceph csi")
+
+    created_content, filename = create_random_content(get_k8s_api_v1)
+
+    # trigger the backup cron and monitor
+    trigger_fetch_job(get_k8s_api_v1, get_k8s_api_v1_batch)
+
+    ddns_ips, image, latest_timestamp = await validate_backups_created(
+        get_test_env, get_proxmoxer
+    )
+
+    brctl_parser = get_parser()
+
+    restore_args = brctl_parser.parse_args(
+        [
+            "restore-k8s",
+            "--bdd-host",
+            ddns_ips[0],
+            "--inventory",
+            get_secondary_kubespray_inv,
+            "--image",
+            image,
+            "--timestamp",
+            latest_timestamp,
+            "--namespace-mapping",
+            "test-backup-source:test-backup-restore",
+            "--auto-scale",
+            "--auto-delete",
+            "--log-level",
+            "DEBUG",
+            "--sc-mapping",
+            "csi-rbd-sc-ssd:openebs-zfspv-zvol" # todo: ceph pool needs to be fetched from get_test_env
+        ]
+    )
+
+    await launch_restore_job(restore_args)
+
+    await validate_restore_job(
+        latest_timestamp, get_k8s_secondary_api_v1, filename, created_content
+    )

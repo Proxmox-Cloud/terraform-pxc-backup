@@ -21,6 +21,7 @@ data "pxc_pve_host" "host" {
 # for proxmox clusters with zfs only storage for k8s
 module "access_namespace" {
   source = "./modules/access-namespace"
+  enable_ceph_csi_backups = var.enable_ceph_csi_backups
 }
 
 data "pxc_cloud_self" "self" {}
@@ -57,8 +58,10 @@ resource "kubernetes_secret" "fetcher_secrets" {
   data = merge({
     "pve-id-rsa" = data.pxc_ssh_key.host_rsa.key
     "qemu-id"= data.pxc_ssh_key.automation.key
-    "patroni-pass" = data.pxc_cloud_file_secret.patroni.secret
   },
+  var.patroni_stack != null ? {
+    "patroni-pass" = data.pxc_cloud_file_secret.patroni.secret
+  } : {},
   var.nextcloud_pass != null ? {
     "nextcloud-pass" = var.nextcloud_pass
   }: {},
@@ -78,24 +81,245 @@ resource "kubernetes_secret" "fetcher_tls_ca" {
   }
 }
 
+resource "kubernetes_cron_job_v1" "fetcher_cron" {
+  metadata {
+    name      = "fetcher-cron"
+    namespace = module.access_namespace.namespace
+  }
 
-resource "kubernetes_manifest" "fetcher_cron" {
-  manifest = yamldecode(templatefile("${path.module}/templates/fetcher-cron.yaml.tpl", {
-    namespace              = module.access_namespace.namespace
-    cron_schedule          = var.cron_schedule
-    bandwidth_limitation   = var.bandwidth_limitation
-    backup_image           = local.backup_image_base
-    backup_image_version   = local.backup_image_version
-    backup_daemon_address  = var.backup_daemon_address
-    pve_host               = data.pxc_pve_host.host.pve_host
-    qemu_admin_user        = var.qemu_admin_user
-    nextcloud_url          = var.nextcloud_url
-    nextcloud_user         = var.nextcloud_user
-    nextcloud_pass         = var.nextcloud_pass
-    git_repo_ssh_key       = var.git_repo_ssh_key
-    git_repo_ssh_key_type  = var.git_repo_ssh_key_type
-    node_selector          = var.node_selector
-    tolerations            = var.tolerations
-  }))
+  spec {
+    schedule = var.cron_schedule
+
+    job_template {
+      metadata {}
+
+      spec {
+        backoff_limit = 0
+
+        template {
+          metadata {
+            annotations = {
+              "kubernetes.io/egress-bandwidth" = var.bandwidth_limitation
+              "kubernetes.io/ingress-bandwidth" = var.bandwidth_limitation
+            }
+          }
+
+          spec {
+            restart_policy = "Never"
+
+            node_selector       = var.node_selector
+
+            dynamic "toleration" {
+              for_each = var.tolerations != null ? var.tolerations : []
+              content {
+                key                = lookup(toleration.value, "key", null)
+                operator           = lookup(toleration.value, "operator", null)
+                value              = lookup(toleration.value, "value", null)
+                effect             = lookup(toleration.value, "effect", null)
+              }
+            }
+
+            volume {
+              name = "fetcher-config"
+
+              config_map {
+                name = "fetcher-config"
+              }
+            }
+
+            dynamic "volume" {
+              for_each = var.enable_ceph_csi_backups ? [1] : []
+
+              content {
+                name = "ceph-config"
+
+                config_map {
+                  name = "ceph-config"
+                }
+              }
+            }
+
+            dynamic "volume" {
+              for_each = var.enable_ceph_csi_backups ? [1] : []
+
+              content {
+                name = "ceph-secrets"
+
+                secret {
+                  secret_name = "ceph-secrets"
+                }
+              }
+            }
+
+            volume {
+              name = "fetcher-secrets"
+
+              secret {
+                secret_name  = "fetcher-secrets"
+                default_mode = "0400"
+              }
+            }
+
+            volume {
+              name = "fetcher-tls-ca"
+
+              secret {
+                secret_name = "fetcher-tls-ca"
+              }
+            }
+
+            container {
+              name              = "fetcher"
+              image             = "${local.backup_image_base}:${local.backup_image_version}"
+              image_pull_policy = "Always"
+
+              args = ["fetcher"]
+
+              env {
+                name  = "BDD_HOST"
+                value = var.backup_daemon_address
+              }
+
+              env {
+                name  = "BDD_CA_CERT_PATH"
+                value = "/opt/bdd_ca.crt"
+              }
+
+              env {
+                name  = "PROXMOXER_HOST"
+                value = data.pxc_pve_host.host.pve_host
+              }
+
+              env {
+                name  = "PROXMOXER_USER"
+                value = "root"
+              }
+
+              env {
+                name  = "QEMU_ADMIN_USER"
+                value = var.qemu_admin_user
+              }
+
+              dynamic "env" {
+                for_each = var.patroni_stack != null ? [1] : []
+
+                content {
+                  name = "PATRONI_PASS"
+
+                  value_from {
+                    secret_key_ref {
+                      name = "fetcher-secrets"
+                      key  = "patroni-pass"
+                    }
+                  }
+                }
+              }
+
+              dynamic "env" {
+                for_each = (
+                  var.nextcloud_url != null &&
+                  var.nextcloud_user != null &&
+                  var.nextcloud_pass != null
+                ) ? [1] : []
+
+                content {
+                  name  = "NEXTCLOUD_USER"
+                  value = var.nextcloud_user
+                }
+              }
+
+              dynamic "env" {
+                for_each = (
+                  var.nextcloud_url != null &&
+                  var.nextcloud_user != null &&
+                  var.nextcloud_pass != null
+                ) ? [1] : []
+
+                content {
+                  name  = "NEXTCLOUD_BASE"
+                  value = var.nextcloud_url
+                }
+              }
+              dynamic "volume_mount" {
+                for_each = var.enable_ceph_csi_backups ? [1] : []
+
+                content {
+                  mount_path = "/etc/ceph/ceph.conf"
+                  name       = "ceph-config"
+                  sub_path   = "ceph.conf"
+                }
+              }
+
+              dynamic "volume_mount" {
+                for_each = var.enable_ceph_csi_backups ? [1] : []
+
+                content {
+                  mount_path = "/etc/pve/priv/ceph.client.admin.keyring"
+                  name       = "ceph-secrets"
+                  sub_path   = "ceph-admin-keyring"
+                }
+              }
+
+              volume_mount {
+                mount_path = "/opt/backup-conf.yaml"
+                name       = "fetcher-config"
+                sub_path   = "backup-conf.yaml"
+              }
+
+              volume_mount {
+                mount_path = "/root/.ssh/id_rsa"
+                name       = "fetcher-secrets"
+                sub_path   = "pve-id-rsa"
+              }
+
+              volume_mount {
+                mount_path = "/opt/id_proxmox"
+                name       = "fetcher-secrets"
+                sub_path   = "pve-id-rsa"
+              }
+
+              volume_mount {
+                mount_path = "/opt/id_qemu"
+                name       = "fetcher-secrets"
+                sub_path   = "qemu-id"
+              }
+
+              dynamic "volume_mount" {
+                for_each = (
+                  var.nextcloud_url != null &&
+                  var.nextcloud_user != null &&
+                  var.nextcloud_pass != null
+                ) ? [1] : []
+
+                content {
+                  mount_path = "/opt/nextcloud.pass"
+                  name       = "fetcher-secrets"
+                  sub_path   = "nextcloud-pass"
+                }
+              }
+
+              dynamic "volume_mount" {
+                for_each = (
+                  var.git_repo_ssh_key != null &&
+                  var.git_repo_ssh_key_type != null
+                ) ? [1] : []
+
+                content {
+                  mount_path = "/root/.ssh/id_${var.git_repo_ssh_key_type}"
+                  name       = "fetcher-secrets"
+                  sub_path   = "id-git"
+                }
+              }
+
+              volume_mount {
+                mount_path = "/opt/bdd_ca.crt"
+                name       = "fetcher-tls-ca"
+                sub_path   = "ca_cert.crt"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
-

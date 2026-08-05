@@ -28,26 +28,34 @@ output "namespace" {
   value = kubernetes_namespace.backup.metadata[0].name
 }
 
-data "pxc_ceph_access" "ceph_access" {}
+variable "enable_ceph_csi_backups" {
+  type = bool # same as main module
+}
+
+data "pxc_ceph_access" "ceph_access" {
+  count = var.enable_ceph_csi_backups ? 1 : 0
+}
 
 # create config map for the backupper
 resource "kubernetes_config_map" "ceph_config" {
+  count = var.enable_ceph_csi_backups ? 1 : 0
   metadata {
     name = "ceph-config"
     namespace = kubernetes_namespace.backup.metadata[0].name
   }
 
   data = {
-    "ceph.conf" = data.pxc_ceph_access.ceph_access.ceph_conf
+    "ceph.conf" = data.pxc_ceph_access.ceph_access[0].ceph_conf
   }
 }
 
 resource "kubernetes_secret" "ceph_secrets" {
+  count = var.enable_ceph_csi_backups ? 1 : 0
   metadata {
     name = "ceph-secrets"
     namespace = kubernetes_namespace.backup.metadata[0].name
   }
   data = {
-    "ceph-admin-keyring" = data.pxc_ceph_access.ceph_access.admin_keyring
+    "ceph-admin-keyring" = data.pxc_ceph_access.ceph_access[0].admin_keyring
   }
 }

@@ -21,10 +21,16 @@ variable "backup_daemon_address" {
   description = "Static ip address to proxmox cloud backup server."
 }
 
-// todo: needs to be made optional / toggable by flag
+variable "enable_ceph_csi_backups" {
+  type = bool
+  description = "Whether or not to fetch the ceph config / access of the proxmox cluster. This enables ceph csi backups, defaults to true."
+  default = true
+}
+
 variable "patroni_stack" {
   type = string
   description = "Stack fqdn of the patroni lxcs for backing up postgres dumps."
+  default = null
 }
 
 variable "k8s_namespaces" {
@@ -110,5 +116,5 @@ variable "tolerations" {
 
 variable "bdd_stack_name" {
   type = string
-  description = "Stack name of the BDD LXC used to locate the BDD TLS certificate secret in the cloud secrets store."
+  description = "Stack name of the backup server used to locate the BDD TLS certificate secret in the cloud secrets store."
 }

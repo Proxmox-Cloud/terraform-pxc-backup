@@ -79,6 +79,7 @@ def backup_scenario(
     scenario_name = "backup"
 
     extra_apply_env = {}
+    extra_apply_env["TF_VAR_e2e_kubespray_inv"] = get_kubespray_inv
 
     backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
@@ -91,7 +92,6 @@ def backup_scenario(
         scenario_name,
         get_k8s_api_v1,
         get_test_env,
-        get_kubespray_inv,
         extra_apply_env,
     )  # this will wait till everything is running after apply
 
@@ -100,10 +100,8 @@ def backup_scenario(
     destroy(
         "pxc-backup",
         scenario_name,
-        get_k8s_api_v1,
         get_test_env,
-        get_kubespray_inv,
-        extra_apply_env,
+        extra_apply_env
     )
 
 
@@ -118,6 +116,7 @@ def secondary_scenario(
     scenario_name = "secondary"
 
     extra_apply_env = {}
+    extra_apply_env["TF_VAR_e2e_kubespray_inv"] = get_secondary_kubespray_inv
 
     backup_vers, tdd_ip = get_tdd_version("pve-cloud-backup")
 
@@ -130,7 +129,6 @@ def secondary_scenario(
         scenario_name,
         get_k8s_secondary_api_v1,
         get_test_env,
-        get_secondary_kubespray_inv,
         extra_apply_env,
     )  # this will wait till everything is running after apply
 
@@ -139,8 +137,6 @@ def secondary_scenario(
     destroy(
         "pxc-backup",
         scenario_name,
-        get_k8s_secondary_api_v1,
         get_test_env,
-        get_secondary_kubespray_inv,
         extra_apply_env,
     )
