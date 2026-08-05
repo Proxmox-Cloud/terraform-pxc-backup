@@ -97,12 +97,7 @@ def backup_scenario(
 
     yield
 
-    destroy(
-        "pxc-backup",
-        scenario_name,
-        get_test_env,
-        extra_apply_env
-    )
+    destroy("pxc-backup", scenario_name, get_test_env, extra_apply_env)
 
 
 @cloud_fixture("secondary")

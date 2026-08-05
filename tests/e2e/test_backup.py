@@ -342,11 +342,9 @@ async def test_restore_zfs_ceph(
     get_proxmoxer,
     backup_scenario,
     secondary_scenario,
-
     get_k8s_api_v1,
     get_k8s_api_v1_batch,
     get_kubespray_inv,
-
     get_k8s_secondary_api_v1,
     get_k8s_secondary_api_v1_batch,
     get_secondary_kubespray_inv,
@@ -382,7 +380,7 @@ async def test_restore_zfs_ceph(
             "--log-level",
             "DEBUG",
             "--sc-mapping",
-            "openebs-zfspv-zvol:csi-rbd-sc-ssd" # todo: ceph pool needs to be fetched from get_test_env
+            "openebs-zfspv-zvol:csi-rbd-sc-ssd",  # todo: ceph pool needs to be fetched from get_test_env
         ]
     )
 
@@ -399,11 +397,9 @@ async def test_restore_ceph_zfs(
     get_proxmoxer,
     backup_scenario,
     secondary_scenario,
-
     get_k8s_api_v1,
     get_k8s_api_v1_batch,
     get_kubespray_inv,
-
     get_k8s_secondary_api_v1,
     get_k8s_secondary_api_v1_batch,
     get_secondary_kubespray_inv,
@@ -439,7 +435,7 @@ async def test_restore_ceph_zfs(
             "--log-level",
             "DEBUG",
             "--sc-mapping",
-            "csi-rbd-sc-ssd:openebs-zfspv-zvol" # todo: ceph pool needs to be fetched from get_test_env
+            "csi-rbd-sc-ssd:openebs-zfspv-zvol",  # todo: ceph pool needs to be fetched from get_test_env
         ]
     )
 
