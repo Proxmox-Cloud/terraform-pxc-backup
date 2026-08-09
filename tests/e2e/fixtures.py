@@ -67,11 +67,11 @@ def create_backup_qemu(request, get_proxmoxer, get_test_env):
                         ],
                         "vars": {
                             "zpool_backup_parameters": {
-                                "pool_properties": {"ashift": "12"}, # only on ssds
+                                "pool_properties": {"ashift": "12"},  # only on ssds
                                 "vdevs": [
                                     {
                                         "disks": [
-                                            "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1" # no pxzfs as custom
+                                            "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1"  # no pxzfs as custom
                                         ]
                                     },
                                 ],
@@ -120,7 +120,9 @@ def setup_k0s_bdd_server(request, get_test_env):
         logger.info(f"existing pools {existing_pools}")
 
         if "tank-ext" not in existing_pools:
-            _, stdout, _ = ssh.exec_command("sudo zpool create -o ashift=12 tank-ext /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2")
+            _, stdout, _ = ssh.exec_command(
+                "sudo zpool create -o ashift=12 tank-ext /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2"
+            )
             exit_status = stdout.channel.recv_exit_status()
             assert exit_status == 0
 
@@ -131,7 +133,6 @@ def setup_k0s_bdd_server(request, get_test_env):
         extra_vars["tdd_local_pypi_host"] = tdd_ip
         extra_vars["py_pve_cloud_backup_version"] = backup_vers
         extra_vars["test_repos_ip"] = tdd_ip
-
 
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as temp_k0s_inv:
         yaml.dump(
@@ -145,9 +146,7 @@ def setup_k0s_bdd_server(request, get_test_env):
                         "bdd_server": {
                             "ansible_user": "admin",
                             "ansible_host": k0s_host,
-                            "use_existing_zpool": {
-                                "pool_name": "tank-ext"
-                            }
+                            "use_existing_zpool": {"pool_name": "tank-ext"},
                         }
                     }
                 },
@@ -234,11 +233,7 @@ def secondary_scenario(
 
 @cloud_fixture("k0s-edge", "k0s")
 def k0s_edge_scenario(
-    request,
-    setup_k0s_bdd_server,
-    secondary_scenario,
-    get_test_env,
-    get_k0s_api_v1
+    request, setup_k0s_bdd_server, secondary_scenario, get_test_env, get_k0s_api_v1
 ):
     scenario_name = "k0s-edge"
 

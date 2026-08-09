@@ -118,7 +118,7 @@ def trigger_fetch_job(v1, v1_batch):
 
 
 async def validate_backups_created(get_test_env, get_proxmoxer, bdd_host_ip=None):
-    ddns_ips = None # hacky
+    ddns_ips = None  # hacky
     if bdd_host_ip is None:
         backup_qemu = None
         for node in get_proxmoxer.nodes.get():
@@ -184,7 +184,9 @@ async def validate_backups_created(get_test_env, get_proxmoxer, bdd_host_ip=None
     return ddns_ips, image, latest_timestamp
 
 
-async def validate_restore_job(latest_timestamp, v1, filename, created_content, namespace="test-backup-restore"):
+async def validate_restore_job(
+    latest_timestamp, v1, filename, created_content, namespace="test-backup-restore"
+):
     # wait for the restore job to finish
     while True:
         time.sleep(5)  # give pods some time to create / dont spam api
@@ -396,7 +398,11 @@ async def test_restore_zfs_ceph(
     await launch_restore_job(restore_args)
 
     await validate_restore_job(
-        latest_timestamp, get_k8s_api_v1, filename, created_content, namespace="test-backup-restore-zfs"
+        latest_timestamp,
+        get_k8s_api_v1,
+        filename,
+        created_content,
+        namespace="test-backup-restore-zfs",
     )
 
 
@@ -451,17 +457,17 @@ async def test_restore_ceph_zfs(
     await launch_restore_job(restore_args)
 
     await validate_restore_job(
-        latest_timestamp, get_k8s_secondary_api_v1, filename, created_content, namespace="test-backup-restore-ceph"
+        latest_timestamp,
+        get_k8s_secondary_api_v1,
+        filename,
+        created_content,
+        namespace="test-backup-restore-ceph",
     )
 
 
 @pytest.mark.asyncio
 async def test_restore_k0s(
-    get_test_env,
-    get_proxmoxer,
-    k0s_edge_scenario,
-    get_k0s_api_v1,
-    get_k0s_api_v1_batch
+    get_test_env, get_proxmoxer, k0s_edge_scenario, get_k0s_api_v1, get_k0s_api_v1_batch
 ):
     logger.info("testing restore within remote k0s node")
 
@@ -482,7 +488,7 @@ async def test_restore_k0s(
         [
             "restore-k8s",
             "--bdd-host",
-            k0s_host, # k0s node is simultaneously the backup host for e2e
+            k0s_host,  # k0s node is simultaneously the backup host for e2e
             "--inventory",
             k0s_inv,
             "--image",
@@ -494,7 +500,7 @@ async def test_restore_k0s(
             "--auto-scale",
             "--auto-delete",
             "--log-level",
-            "DEBUG"
+            "DEBUG",
         ]
     )
 
@@ -516,7 +522,6 @@ async def test_restore_ceph_k0s(
     get_k8s_api_v1,
     get_k8s_api_v1_batch,
     get_kubespray_inv,
-
 ):
     logger.info("testing restore from main ceph kubespray to remote k0s node")
 
@@ -559,5 +564,9 @@ async def test_restore_ceph_k0s(
     await launch_restore_job(restore_args)
 
     await validate_restore_job(
-        latest_timestamp, get_k0s_api_v1, filename, created_content, namespace="test-backup-restore-ceph"
+        latest_timestamp,
+        get_k0s_api_v1,
+        filename,
+        created_content,
+        namespace="test-backup-restore-ceph",
     )
