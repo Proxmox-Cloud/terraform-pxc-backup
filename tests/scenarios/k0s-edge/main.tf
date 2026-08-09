@@ -1,7 +1,4 @@
-# init core scenario
-variable "test_pve_conf" {
-  type = string
-}
+
 
 variable "backup_image_base" {
   type = string
@@ -12,17 +9,18 @@ variable "backup_image_version" {
   type = string
   default = null
 }
-
-locals {
-  test_pve_conf = yamldecode(file(var.test_pve_conf))
+variable "e2e_k0s_ext_hosts_inv" {
+  type = string
 }
-
-variable "e2e_kubespray_inv" {
+provider "pxc" {
+  inventory = var.e2e_k0s_ext_hosts_inv
+}
+variable "test_pve_conf" {
   type = string
 }
 
-provider "pxc" {
-  inventory = var.e2e_kubespray_inv
+locals {
+  test_pve_conf = yamldecode(file(var.test_pve_conf))
 }
 
 module "backup_source" {
@@ -31,11 +29,11 @@ module "backup_source" {
   storage_class_name = "openebs-zfspv-zvol"
 }
 
-module "tf_backup" {
-  source =  "../../../"
-  bdd_stack_name = "pytest-backup-qemu"
-
-  enable_ceph_csi_backups = false
+module "tf_backup_edge" {
+  source =  "../../../modules/k0s-edge-zfs-localpv"
+  # here we do some fuckery for e2e testing. The backup server is running on the same edge
+  # kubernetes node that we create the backups from
+  bdd_stack_name = "pytest-k0s"
 
   k8s_namespaces = [ "test-backup-source" ]
 
@@ -45,6 +43,7 @@ module "tf_backup" {
   backup_image_version = var.backup_image_version
 
 }
+
 
 module "backup_restore" {
   source = "../deployment"

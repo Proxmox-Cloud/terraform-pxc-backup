@@ -16,9 +16,15 @@ variable "backup_image_base" {
   default = null
 }
 
+variable "bdd_stack_name" {
+  type = string
+  description = "Stack name of the backup server used to locate the discovery secret (host address + tls certs)."
+}
+
 variable "backup_daemon_address" {
   type = string
-  description = "Static ip address to proxmox cloud backup server."
+  description = "Address for the backup server (optional). When omitted will use the address from the backup discovery secret."
+  default = null
 }
 
 variable "enable_ceph_csi_backups" {
@@ -112,9 +118,4 @@ variable "tolerations" {
   type = list(map(string))
   default = null
   description = "Tolerations to add to all controller deployments/jobs."
-}
-
-variable "bdd_stack_name" {
-  type = string
-  description = "Stack name of the backup server used to locate the BDD TLS certificate secret in the cloud secrets store."
 }

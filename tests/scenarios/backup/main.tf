@@ -64,11 +64,18 @@ module "backup_restore" {
   storage_class_name = "csi-rbd-sc-${local.test_pve_conf["ceph_csi_storage_pool"]}"
 }
 
+# restore destination for the zfs csi based secondary cluster (cross csi restore test)
+module "backup_restore_zfs" {
+  source = "../deployment"
+  namespace = "test-backup-restore-zfs"
+  storage_class_name = "csi-rbd-sc-${local.test_pve_conf["ceph_csi_storage_pool"]}"
+}
+
 module "tf_backup"{
   source =  "../../../"
-  backup_daemon_address = "main-pytest-backup-lxc.${local.test_pve_conf["cloud_inventory"]["pve_cloud_domain"]}"
+  bdd_stack_name = "pytest-backup-qemu"
+
   patroni_stack = "ha-postgres.${local.test_pve_conf["cloud_inventory"]["pve_cloud_domain"]}"
-  bdd_stack_name = "pytest-backup-lxc"
 
   k8s_namespaces = [ "test-backup-source" ]
 

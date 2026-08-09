@@ -10,8 +10,8 @@ data "pxc_cloud_file_secret" "patroni" {
   secret_name = "patroni.pass"
 }
 
-data "pxc_cloud_secret" "bdd_tls_ca" {
-  secret_name = "${var.bdd_stack_name}-bdd-tls-certs"
+data "pxc_cloud_secret" "bdd_discovery" {
+  secret_name = "${var.bdd_stack_name}-bdd-tls-discovery"
 }
 
 data "pxc_pve_host" "host" {
@@ -77,7 +77,7 @@ resource "kubernetes_secret" "fetcher_tls_ca" {
     namespace =  module.access_namespace.namespace
   }
   data = {
-    "ca_cert.crt" = jsondecode(data.pxc_cloud_secret.bdd_tls_ca.secret_data)["ca_cert.crt"]
+    "ca_cert.crt" = jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["ca_cert.crt"]
   }
 }
 
@@ -177,7 +177,7 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
 
               env {
                 name  = "BDD_HOST"
-                value = var.backup_daemon_address
+                value = var.backup_daemon_address != null ? var.backup_daemon_address : jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["server_int_ip"]
               }
 
               env {
