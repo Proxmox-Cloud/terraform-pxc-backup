@@ -23,7 +23,19 @@ variable "bdd_stack_name" {
 
 variable "backup_daemon_address" {
   type = string
-  description = "Address for the backup server (optional). When omitted will use the address from the backup discovery secret."
+  description = <<-EOT
+    Address for the backup server (optional). When omitted will use the address from the backup discovery secret. Set this
+    to https://your-multicloud-gateway.domain + set the variable mc_ext_token to send backups to another cloud.
+  EOT
+  default = null
+}
+
+variable "mc_ext_token" {
+  type = string
+  description = <<-EOT
+    If you set the backup daemon address to https:// it will assume you want to backup via the multi cloud gateway. Set
+    this variable to the external token (from external-mc-token discovery secret).
+  EOT
   default = null
 }
 

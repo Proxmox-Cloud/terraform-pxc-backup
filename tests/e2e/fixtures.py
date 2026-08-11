@@ -141,8 +141,8 @@ def setup_k0s_bdd_server(request, get_test_env):
                 "pve_cloud_domain": get_test_env["cloud_inventory"]["pve_cloud_domain"],
                 "target_cluster": get_test_env["pve_test_cluster_name"],
                 "external_stack_name": "pytest-k0s",
-                "host_groups": {
-                    "ungrouped": {
+                "typed_host_groups": {
+                    "backup_daemon": {
                         "bdd_server": {
                             "ansible_user": "admin",
                             "ansible_host": k0s_host,
@@ -231,7 +231,7 @@ def secondary_scenario(
     )
 
 
-@cloud_fixture("k0s-edge", "k0s")
+@cloud_fixture("k0s-edge", "k0s", "k0s-tf", "k0s-tf")
 def k0s_edge_scenario(
     request, setup_k0s_bdd_server, secondary_scenario, get_test_env, get_k0s_api_v1
 ):
