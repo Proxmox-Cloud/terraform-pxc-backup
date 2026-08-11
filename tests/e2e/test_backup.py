@@ -21,10 +21,10 @@ from kubernetes import client
 from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
+from pve_cloud.lib.backup_rpc import Command
 from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
                                            list_backup_details_remote,
                                            list_backups_remote)
-from pve_cloud.lib.backup_rpc import Command
 from pve_cloud_test.cloud_fixtures import *
 from pve_cloud_test.k8s_fixtures import construct_k0s_ext_hosts_inv
 
@@ -104,7 +104,7 @@ def trigger_fetch_job(v1, v1_batch):
 
         if not pods:
             logger.warning("job not started yet, slow k8s...")
-            continue # 5s start wait wasnt enough
+            continue  # 5s start wait wasnt enough
 
         pod = pods[0]
 
@@ -120,7 +120,9 @@ def trigger_fetch_job(v1, v1_batch):
         logger.info(f"pod {pod.metadata.name} in phase {phase}")
 
 
-async def validate_backups_created(get_test_env, get_proxmoxer, bdd_stack_fqdn=None, bdd_host_ip=None, use_mc_gw=False):
+async def validate_backups_created(
+    get_test_env, get_proxmoxer, bdd_stack_fqdn=None, bdd_host_ip=None, use_mc_gw=False
+):
     ddns_ips = None  # hacky
     if bdd_host_ip is None:
         backup_qemu = None
@@ -146,7 +148,9 @@ async def validate_backups_created(get_test_env, get_proxmoxer, bdd_stack_fqdn=N
         bdd_host_ip = ddns_ips[0]
 
     if bdd_stack_fqdn is None:
-        bdd_stack_fqdn = f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}"
+        bdd_stack_fqdn = (
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}"
+        )
 
     time.sleep(10)  # wait for borg repo lock to be released
 
@@ -183,18 +187,16 @@ async def validate_backups_created(get_test_env, get_proxmoxer, bdd_stack_fqdn=N
                 bdd_stack_fqdn,
                 "--timestamp",
                 latest_timestamp,
-            ] + (["--use-mc-gw"] if use_mc_gw else [])
+            ]
+            + (["--use-mc-gw"] if use_mc_gw else [])
         )
     )
 
     # debug list generic
     await list_backups_remote(
         brctl_parser.parse_args(
-            [
-                "list-backups",
-                "--bdd-stack-fqdn",
-                bdd_stack_fqdn
-            ] + (["--use-mc-gw"] if use_mc_gw else [])
+            ["list-backups", "--bdd-stack-fqdn", bdd_stack_fqdn]
+            + (["--use-mc-gw"] if use_mc_gw else [])
         )
     )
 
@@ -498,7 +500,11 @@ async def test_restore_k0s(
     trigger_fetch_job(get_k0s_api_v1, get_k0s_api_v1_batch)
 
     _, image, latest_timestamp = await validate_backups_created(
-        get_test_env, get_proxmoxer, bdd_host_ip=k0s_host, bdd_stack_fqdn=f"pytest-k0s.{get_test_env['cloud_inventory']['pve_cloud_domain']}", use_mc_gw=True
+        get_test_env,
+        get_proxmoxer,
+        bdd_host_ip=k0s_host,
+        bdd_stack_fqdn=f"pytest-k0s.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
+        use_mc_gw=True,
     )
 
     brctl_parser = get_parser()
