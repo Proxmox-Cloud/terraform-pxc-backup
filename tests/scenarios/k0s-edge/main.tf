@@ -35,6 +35,8 @@ module "tf_backup_edge" {
   # kubernetes node that we create the backups from
   bdd_stack_name = "pytest-k0s"
 
+  use_mc_gw_as_host = true
+
   k8s_namespaces = [ "test-backup-source" ]
 
   bandwidth_limitation = "20M"

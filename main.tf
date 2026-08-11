@@ -81,6 +81,16 @@ resource "kubernetes_secret" "fetcher_tls_ca" {
   }
 }
 
+
+data "pxc_cloud_secret" "mc_discovery" {
+  secret_name = "mc_discovery"
+}
+
+locals {
+  mc_parsed = data.pxc_cloud_secret.mc_discovery.secret_data != "" ? jsondecode(data.pxc_cloud_secret.mc_discovery.secret_data) : null
+}
+
+
 resource "kubernetes_cron_job_v1" "fetcher_cron" {
   metadata {
     name      = "fetcher-cron"
@@ -178,6 +188,22 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
               env {
                 name  = "BDD_HOST"
                 value = var.backup_daemon_address != null ? var.backup_daemon_address : jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["server_int_ip"]
+              }
+
+              env {
+                name = "BDD_STACK_NAME"
+                value = var.bdd_stack_name
+              }
+
+              dynamic "env" {
+                for_each = (
+                  var.mc_ext_token != null
+                ) ? [1] : []
+
+                content {
+                  name  = "MC_EXT_TOKEN"
+                  value = var.mc_ext_token
+                }
               }
 
               env {

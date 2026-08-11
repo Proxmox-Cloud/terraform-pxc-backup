@@ -31,9 +31,18 @@ module "backup_source" {
   storage_class_name = "openebs-zfspv-zvol"
 }
 
+# send via mc gateway
+data "pxc_cloud_secret" "mc_ext_discovery" {
+  secret_name = "external-mc-token"
+}
+
 module "tf_backup" {
   source =  "../../../"
   bdd_stack_name = "pytest-backup-qemu"
+
+  # use our gateway
+  backup_daemon_address = "https://${jsondecode(data.pxc_cloud_secret.mc_ext_discovery.secret_data).mc_gw_host}"
+  mc_ext_token = jsondecode(data.pxc_cloud_secret.mc_ext_discovery.secret_data).token
 
   enable_ceph_csi_backups = false
 

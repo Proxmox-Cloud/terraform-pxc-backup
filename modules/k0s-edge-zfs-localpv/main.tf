@@ -56,6 +56,14 @@ resource "kubernetes_secret" "fetcher_tls_ca" {
   }
 }
 
+data "pxc_cloud_secret" "mc_ext_discovery" {
+  secret_name = "external-mc-token"
+}
+
+locals {
+  mc_parsed = data.pxc_cloud_secret.mc_ext_discovery.secret_data != "" ? jsondecode(data.pxc_cloud_secret.mc_ext_discovery.secret_data) : null
+}
+
 resource "kubernetes_cron_job_v1" "fetcher_cron" {
   metadata {
     name      = "fetcher-cron"
@@ -116,9 +124,46 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
 
               args = ["ext-zfs"]
 
+              # todo: here should be some form of validation to make sure
+              # that BDD_HOST env var gets set!
+              dynamic "env" {
+                for_each = (
+                  !var.use_mc_gw_as_host
+                ) ? [1] : []
+
+                content {
+                  name  = "BDD_HOST"
+                  value = var.backup_daemon_address != null ? var.backup_daemon_address : jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["server_int_ip"]
+                }
+              }
+
+              dynamic "env" {
+                for_each = (
+                  local.mc_parsed != null &&
+                  var.use_mc_gw_as_host
+                ) ? [1] : []
+
+                content {
+                  name  = "BDD_HOST"
+                  value = "https://${local.mc_parsed.mc_gw_host}"
+                }
+              }
+
+              dynamic "env" {
+                for_each = (
+                  local.mc_parsed != null &&
+                  var.use_mc_gw_as_host
+                ) ? [1] : []
+
+                content {
+                  name  = "MC_EXT_TOKEN"
+                  value = local.mc_parsed.token
+                }
+              }
+
               env {
-                name  = "BDD_HOST"
-                value = var.backup_daemon_address != null ? var.backup_daemon_address : jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["server_int_ip"]
+                name = "BDD_STACK_NAME"
+                value = var.bdd_stack_name
               }
 
               env {

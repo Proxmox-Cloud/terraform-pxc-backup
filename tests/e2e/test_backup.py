@@ -21,9 +21,10 @@ from kubernetes import client
 from kubernetes.client import V1Job, V1JobSpec, V1ObjectMeta
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
+from pve_cloud.lib.backup_rpc import Command
 from pve_cloud_backup.daemon.brctl import (get_parser, launch_restore_job,
-                                           list_backup_details_remote)
-from pve_cloud_backup.daemon.rpc import Command
+                                           list_backup_details_remote,
+                                           list_backups_remote)
 from pve_cloud_test.cloud_fixtures import *
 from pve_cloud_test.k8s_fixtures import construct_k0s_ext_hosts_inv
 
@@ -101,7 +102,9 @@ def trigger_fetch_job(v1, v1_batch):
             namespace="pve-cloud-backup", label_selector=f"job-name={job_name}"
         ).items
 
-        assert pods
+        if not pods:
+            logger.warning("job not started yet, slow k8s...")
+            continue  # 5s start wait wasnt enough
 
         pod = pods[0]
 
@@ -117,7 +120,9 @@ def trigger_fetch_job(v1, v1_batch):
         logger.info(f"pod {pod.metadata.name} in phase {phase}")
 
 
-async def validate_backups_created(get_test_env, get_proxmoxer, bdd_host_ip=None):
+async def validate_backups_created(
+    get_test_env, get_proxmoxer, bdd_stack_fqdn=None, bdd_host_ip=None, use_mc_gw=False
+):
     ddns_ips = None  # hacky
     if bdd_host_ip is None:
         backup_qemu = None
@@ -141,6 +146,11 @@ async def validate_backups_created(get_test_env, get_proxmoxer, bdd_host_ip=None
         assert ddns_ips  # assert ddns response
 
         bdd_host_ip = ddns_ips[0]
+
+    if bdd_stack_fqdn is None:
+        bdd_stack_fqdn = (
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}"
+        )
 
     time.sleep(10)  # wait for borg repo lock to be released
 
@@ -173,11 +183,20 @@ async def validate_backups_created(get_test_env, get_proxmoxer, bdd_host_ip=None
         brctl_parser.parse_args(
             [
                 "backup-details",
-                "--bdd-host",
-                bdd_host_ip,
+                "--bdd-stack-fqdn",
+                bdd_stack_fqdn,
                 "--timestamp",
                 latest_timestamp,
             ]
+            + (["--use-mc-gw"] if use_mc_gw else [])
+        )
+    )
+
+    # debug list generic
+    await list_backups_remote(
+        brctl_parser.parse_args(
+            ["list-backups", "--bdd-stack-fqdn", bdd_stack_fqdn]
+            + (["--use-mc-gw"] if use_mc_gw else [])
         )
     )
 
@@ -275,8 +294,8 @@ async def test_backup(
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
+            "--bdd-stack-fqdn",
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
             "--inventory",
             get_kubespray_inv,
             "--image",
@@ -323,8 +342,9 @@ async def test_secondary_backup(
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
+            "--bdd-stack-fqdn",
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
+            "--use-mc-gw",
             "--inventory",
             get_secondary_kubespray_inv,
             "--image",
@@ -376,8 +396,8 @@ async def test_restore_zfs_ceph(
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
+            "--bdd-stack-fqdn",
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
             "--inventory",
             get_kubespray_inv,
             "--image",
@@ -435,8 +455,9 @@ async def test_restore_ceph_zfs(
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
+            "--bdd-stack-fqdn",
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
+            "--use-mc-gw",
             "--inventory",
             get_secondary_kubespray_inv,
             "--image",
@@ -479,16 +500,25 @@ async def test_restore_k0s(
     trigger_fetch_job(get_k0s_api_v1, get_k0s_api_v1_batch)
 
     _, image, latest_timestamp = await validate_backups_created(
-        get_test_env, get_proxmoxer, bdd_host_ip=k0s_host
+        get_test_env,
+        get_proxmoxer,
+        bdd_host_ip=k0s_host,
+        bdd_stack_fqdn=f"pytest-k0s.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
+        use_mc_gw=True,
     )
 
     brctl_parser = get_parser()
 
+    # todo: the original scenarios are not all covered by the e2e testing suite
+    # for that to be achived we need the ability to define mutliple backup cron jobs
+    # for a single cluster, for example one that uses the multicloud gateway
+    # and another that doesnt
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            k0s_host,  # k0s node is simultaneously the backup host for e2e
+            "--bdd-stack-fqdn",
+            f"pytest-k0s.{get_test_env['cloud_inventory']['pve_cloud_domain']}",  # k0s node is simultaneously the backup host for e2e
+            "--use-mc-gw",
             "--inventory",
             k0s_inv,
             "--image",
@@ -542,8 +572,9 @@ async def test_restore_ceph_k0s(
     restore_args = brctl_parser.parse_args(
         [
             "restore-k8s",
-            "--bdd-host",
-            ddns_ips[0],
+            "--bdd-stack-fqdn",
+            f"pytest-backup-qemu.{get_test_env['cloud_inventory']['pve_cloud_domain']}",
+            "--use-mc-gw",
             "--inventory",
             k0s_inv,
             "--image",

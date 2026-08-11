@@ -22,9 +22,18 @@ variable "bdd_stack_name" {
   description = "Stack name of the backup server used to locate the discovery secret (host address + tls certs)."
 }
 
+variable "use_mc_gw_as_host" {
+  type = bool
+  default = false
+  description = <<-EOT
+    Will use the dicovery secret external-mc-token to get credentials + multi cloud endpoint. Mutually exclusive with backup_daemon_address.
+    You determine the destination of the gateway / cloud + backup server by the initialization of your pxc provider. You should use the cloud you
+    want to backup to when initializing.
+  EOT
+}
+
 variable "backup_daemon_address" {
   type = string
-  description = "Address for the backup server (optional). When omitted will use the address from the backup discovery secret."
   default = null
 }
 
