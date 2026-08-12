@@ -72,6 +72,7 @@ resource "kubernetes_secret" "fetcher_secrets" {
 }
 
 resource "kubernetes_secret" "fetcher_tls_ca" {
+  count = var.mc_ext_token == null ? 1 : 0
   metadata {
     name = "fetcher-tls-ca"
     namespace =  module.access_namespace.namespace
@@ -170,11 +171,20 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
               }
             }
 
-            volume {
-              name = "fetcher-tls-ca"
+            # we only need to mount the fetcher tls secrets if we connect
+            # directly to it and not when going via the mc gw proxy
+            dynamic "volume" {
+              for_each = (
+                var.mc_ext_token != null
+              ) ? [1] : []
 
-              secret {
-                secret_name = "fetcher-tls-ca"
+              content {
+                name = "fetcher-tls-ca"
+
+                secret {
+                  secret_name = "fetcher-tls-ca"
+                }
+
               }
             }
 
@@ -206,9 +216,16 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
                 }
               }
 
-              env {
-                name  = "BDD_CA_CERT_PATH"
-                value = "/opt/bdd_ca.crt"
+              # todo: this is not in use
+              dynamic "env" {
+                for_each = (
+                  var.mc_ext_token == null
+                ) ? [1] : []
+
+                content {
+                  name  = "BDD_CA_CERT_PATH"
+                  value = "/opt/bdd_ca.crt"
+                }
               }
 
               env {
@@ -337,10 +354,17 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
                 }
               }
 
-              volume_mount {
-                mount_path = "/opt/bdd_ca.crt"
-                name       = "fetcher-tls-ca"
-                sub_path   = "ca_cert.crt"
+              # only mount fetcher ca if we are not connecting via the multicloud gateway
+              dynamic "volume_mount" {
+                for_each = (
+                  var.mc_ext_token == null
+                  ) ? [1] : []
+
+                content {
+                  mount_path = "/opt/bdd_ca.crt"
+                  name       = "fetcher-tls-ca"
+                  sub_path   = "ca_cert.crt"
+                }
               }
             }
           }
