@@ -55,14 +55,16 @@ def create_backup_qemu(request, get_proxmoxer, get_test_env):
                         "additional_disks": [
                             # disk for backup zfs
                             {
-                                "size": "50G",
-                                "options": {
-                                    "discard": "on",
-                                    "iothread": "on",
-                                    "ssd": "on",
-                                    "cache": "unsafe",
-                                },
-                                "pool": get_test_env["pve_vm_storage_id"],
+                                "from_storage": {
+                                    "size": "50G",
+                                    "options": {
+                                        "discard": "on",
+                                        "iothread": "on",
+                                        "ssd": "on",
+                                        "cache": "unsafe",
+                                    },
+                                    "pool": get_test_env["pve_vm_storage_id"],
+                                }
                             },
                         ],
                         "vars": {
