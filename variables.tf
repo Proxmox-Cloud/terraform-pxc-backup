@@ -131,3 +131,8 @@ variable "tolerations" {
   default = null
   description = "Tolerations to add to all controller deployments/jobs."
 }
+
+variable "log_level" {
+  type = string
+  default = "INFO"
+}

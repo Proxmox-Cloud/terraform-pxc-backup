@@ -196,6 +196,11 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
               args = ["fetcher"]
 
               env {
+                name  = "LOG_LEVEL"
+                value = var.log_level
+              }
+
+              env {
                 name  = "BDD_HOST"
                 value = var.backup_daemon_address != null ? var.backup_daemon_address : jsondecode(data.pxc_cloud_secret.bdd_discovery.secret_data)["server_int_ip"]
               }

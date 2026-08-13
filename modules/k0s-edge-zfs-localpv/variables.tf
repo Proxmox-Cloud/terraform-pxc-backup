@@ -59,3 +59,8 @@ variable "k0s_admin_user" {
   description = "user to login to the host machine(s) with (needs passwordless sudo)."
   default = "admin"
 }
+
+variable "log_level" {
+  type = string
+  default = "INFO"
+}

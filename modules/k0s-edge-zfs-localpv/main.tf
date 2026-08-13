@@ -162,6 +162,11 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
               }
 
               env {
+                name  = "LOG_LEVEL"
+                value = var.log_level
+              }
+
+              env {
                 name = "BDD_STACK_NAME"
                 value = var.bdd_stack_name
               }
