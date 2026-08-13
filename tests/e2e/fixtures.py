@@ -78,7 +78,7 @@ def create_backup_qemu(request, get_proxmoxer, get_test_env):
                                     },
                                 ],
                             },
-                            "bdd_log_level": "DEBUG"
+                            "bdd_log_level": "DEBUG",
                         },
                         "parameters": {
                             "cores": 2,
