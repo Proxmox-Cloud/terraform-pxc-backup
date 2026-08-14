@@ -175,7 +175,7 @@ resource "kubernetes_cron_job_v1" "fetcher_cron" {
             # directly to it and not when going via the mc gw proxy
             dynamic "volume" {
               for_each = (
-                var.mc_ext_token != null
+                var.mc_ext_token == null
               ) ? [1] : []
 
               content {

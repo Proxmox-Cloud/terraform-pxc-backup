@@ -44,6 +44,8 @@ module "tf_backup_edge" {
   backup_image_base = var.backup_image_base
   backup_image_version = var.backup_image_version
 
+  log_level = "DEBUG"
+
 }
 
 
