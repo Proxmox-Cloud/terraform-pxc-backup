@@ -150,7 +150,7 @@ def setup_k0s_bdd_server(request, get_test_env):
                             "ansible_user": "admin",
                             "ansible_host": k0s_host,
                             "use_existing_zpool": {"pool_name": "tank-ext"},
-                            "bdd_log_level": "DEBUG"
+                            "bdd_log_level": "DEBUG",
                         }
                     }
                 },
