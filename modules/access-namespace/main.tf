@@ -96,6 +96,7 @@ data "pxc_cloud_secret" "k0s_edge_host_key" {
 }
 
 resource "kubernetes_secret" "fetcher_secrets" {
+  count = var.deploy_restore_secrets != null ? 1 : 0
   metadata {
     name = "fetcher-secrets"
     namespace = kubernetes_namespace.backup.metadata[0].name
