@@ -28,10 +28,6 @@ output "namespace" {
   value = kubernetes_namespace.backup.metadata[0].name
 }
 
-variable "enable_ceph_csi_backups" {
-  type = bool # same as main module
-}
-
 data "pxc_ceph_access" "ceph_access" {
   count = var.enable_ceph_csi_backups ? 1 : 0
 }
@@ -60,22 +56,7 @@ resource "kubernetes_secret" "ceph_secrets" {
   }
 }
 
-variable "deploy_restore_secrets" {
-  type = string
-  description = <<-EOF
-    Use this variable to trigger creation needed for restoring backups. This is useful for restore only options where you
-    dont want to configure a backup job.
-  EOF
-  default = null
-  validation {
-    condition = var.deploy_restore_secrets == null || contains(
-      ["kubespray", "k0s-edge"], var.deploy_restore_secrets
-    )
-    error_message = "Deploy restore secrets options are kubespray, k0s-edge or null!"
-  }
-}
-
-
+# restore secrets on direct deploy of this submodule
 data "pxc_ssh_key" "automation" {
   count = var.deploy_restore_secrets == "kubespray" ? 1 : 0
   key_type = "AUTOMATION"
@@ -85,7 +66,6 @@ data "pxc_cloud_self" "self" {}
 
 locals {
   cluster_vars = yamldecode(data.pxc_cloud_self.self.cluster_vars)
-
   k8s_stack_fqdn = "${data.pxc_cloud_self.self.stack_name}.${local.cluster_vars.pve_cloud_domain}"
 }
 
