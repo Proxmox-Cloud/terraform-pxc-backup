@@ -88,6 +88,7 @@ def create_backup_qemu(request, get_proxmoxer, get_test_env):
                 ],
                 "target_pve_hosts": list(get_test_env["pve_test_cluster_hosts"].keys()),
                 "root_ssh_pub_key": get_test_env["ssh_pub_key"],
+                "additional_root_ssh_pub_keys": get_test_env["additional_ssh_pub_keys"] if "additional_ssh_pub_keys" in get_test_env else []
             },
             temp_dyn_lxcs_inv,
         )
